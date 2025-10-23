@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Timetable</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .actions {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .timetable-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.85em;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 8px;
+            text-align: center;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 11;
+        }
+
+        td {
+            padding: 12px 8px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        td:first-child {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #667eea;
+            position: sticky;
+            left: 0;
+            z-index: 9;
+        }
+
+        .lecture {
+            background: #cfe2ff;
+            border-left: 4px solid #0d6efd;
+        }
+
+        .lab {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .tutorial {
+            background: #d1e7dd;
+            border-left: 4px solid #198754;
+        }
+
+        .break {
+            background: #fff3cd;
+            font-style: italic;
+        }
+
+        .slot-info {
+            font-size: 0.75em;
+            display: block;
+            margin-top: 3px;
+            color: #666;
+        }
+
+        .course-name {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .container {
+                box-shadow: none;
+            }
+            .actions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 Generated Timetable</h1>
+        
+        <div class="actions">
+            <button class="btn btn-primary" onclick="window.location.href='/'">
+                ← Back to Upload
+            </button>
+            <button class="btn btn-success" onclick="window.location.href='/download'">
+                📥 Download CSV
+            </button>
+            <button class="btn btn-primary" onclick="window.print()">
+                🖨️ Print
+            </button>
+        </div>
+
+        <% if (timetable.length === 0) { %>
+            <div class="no-data">
+                No timetable generated yet. Please upload data and generate a timetable first.
+            </div>
+        <% } else { %>
+            <div class="timetable-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>DAY</th>
+                            <% timeSlots.forEach(slot => { %>
+                                <th><%= slot %></th>
+                            <% }); %>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% days.forEach(day => { %>
+                            <tr>
+                                <td><%= day %></td>
+                                <% timeSlots.forEach(slot => { %>
+                                    <% 
+                                        const entry = timetable.find(t => t.day === day && t.timeSlot === slot);
+                                        let className = '';
+                                        if (entry) {
+                                            if (entry.type.toLowerCase().includes('lab')) className = 'lab';
+                                            else if (entry.type.toLowerCase().includes('tutorial')) className = 'tutorial';
+                                            else className = 'lecture';
+                                        }
+                                    %>
+                                    <td class="<%= className %>">
+                                        <% if (entry) { %>
+                                            <span class="course-name"><%= entry.course %></span>
+                                            <span class="slot-info"><%= entry.faculty %></span>
+                                            <span class="slot-info">Room: <%= entry.room %></span>
+                                            <span class="slot-info"><%= entry.type %></span>
+                                        <% } %>
+                                    </td>
+                                <% }); %>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        <% } %>
+    </div>
+</body>
+</html>
