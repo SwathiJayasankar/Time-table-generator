@@ -1,87 +1,46 @@
-# Time-table-generator
-# Automated Timetable Generator
+# 🕒 Automated Timetable Generator
 
-Automated timetable generation using Node.js, Express, MongoDB with CSV upload support.
+The **Automated Timetable Generator** is a backend-driven **MERN stack** project (without React) that creates optimized class schedules automatically.  
+It takes course, faculty, and room details as input and generates a **conflict-free weekly timetable** — saving time, reducing human error, and ensuring efficient utilization of resources.
 
-## Prerequisites
+---
 
-- Node.js (v14+)
-- MongoDB (v4.4+)
+## ⚙️ Tech Stack
+- **Backend:** Node.js, Express.js  
+- **Database:** MongoDB  
+- **File Upload**: Multer
+- **CSV Parsing**: csv-parser
+- **Frontend:** HTML, CSS, EJS  
+- **Language:** JavaScript  
 
-## Quick Setup
-
-1. **Install MongoDB and start it**:
-```bash
-mongod
-```
-
-2. **Create project structure**:
-```bash
-mkdir timetable-generator
-cd timetable-generator
-mkdir views uploads public
-```
-
-3. **Install dependencies**:
-```bash
-npm install
-```
-
-4. **Start application**:
-```bash
-npm start
-```
-
-5. **Open browser**: `http://localhost:3000`
-
-## CSV Format
-
-**courses.csv**:
-```csv
-code,name,faculty,duration,type
-CS201,Operating System,Dr. John Doe,1,Lecture
-CS201L,Operating System Lab,Dr. John Doe,2,Lab
-```
-
-**faculty.csv**:
-```csv
-name,department,availability
-Dr. John Doe,Computer Science,All days
-```
-
-**rooms.csv**:
-```csv
-number,capacity,type
-C1,60,Classroom
-L1,30,Lab
-```
+---
 
 ## Features
 
-- Even distribution of classes across all days
-- No faculty/room conflicts
-- Smart room allocation (Labs → Lab rooms)
-- Consecutive slots for multi-hour classes
-- Color-coded view (Blue=Lectures, Red=Labs, Green=Tutorials)
-- CSV export and print support
+- CSV upload for courses, faculty, and rooms
+- Automated timetable generation with conflict resolution
+- Even distribution of classes across all weekdays
+- Color-coded timetable view (Lectures, Labs, Tutorials)
+- Export timetable to CSV
+- Print-friendly view
+- Modern, responsive UI
+- Smart room allocation (Labs → Lab rooms, Lectures → Classrooms)
+- Consecutive slot allocation for multi-hour classes
 
-## Usage
+---
 
-1. Upload courses, faculty, and rooms CSV files
-2. Click "Generate Timetable"
-3. View, download, or print the timetable
+## 📥 Inputs
+The system accepts data through CSV files or forms:
 
-## Troubleshooting
+| Input Type | Description |
+|-------------|-------------|
+| **Courses** | Course code, course name, and type (Lecture/Lab) |
+| **Faculty** | Faculty name and available slots |
+| **Rooms** | Room name, capacity, and type |
 
-**MongoDB error**: Ensure MongoDB is running (`mongod`)
+---
 
-**Upload fails**: Check CSV format matches exactly with headers
-
-**Generation fails**: Upload all 3 CSV files first
-
-**Undefined error**: Ensure no empty cells in CSV files
-
-## File Structure
+**project structure**:
 ```
 timetable-generator/
 ├── server.js
@@ -89,9 +48,62 @@ timetable-generator/
 ├── views/
 │   ├── index.ejs
 │   └── timetable.ejs
-└── uploads/
+├── public/
+├── uploads/
+└── sample_data/
+    ├── sample_courses.csv
+    ├── sample_faculty.csv
+    └── sample_rooms.csv
 ```
 
 ---
 
-**Note**: Make sure all CSV column headers match exactly (case-sensitive)
+## 🧠 Algorithm Features
+The scheduling algorithm applies **constraint-based allocation**:
+The timetable generator ensures:
+- **Even distribution** of classes across all weekdays
+- **No faculty conflicts** (faculty can't be in two places at once)
+- **No room conflicts** (rooms can't host two classes simultaneously)
+- **Smart room allocation** (Labs get lab rooms, lectures get classrooms)
+- **Consecutive slot allocation** for multi-hour classes (labs, workshops)
+- **Priority scheduling** (Labs scheduled first as they need more consecutive slots)
+- Automatic retry mechanism for difficult-to-place courses
+- Distribution statistics logged in console
+
+---
+
+## API Endpoints
+- `GET /` - Upload interface
+- `POST /upload/courses` - Upload courses CSV
+- `POST /upload/faculty` - Upload faculty CSV
+- `POST /upload/rooms` - Upload rooms CSV
+- `POST /generate` - Generate timetable
+- `GET /view` - View generated timetable
+- `GET /download` - Download timetable as CSV
+
+---
+
+## Color Coding
+
+- 🔵 **Blue** - Lectures
+- 🔴 **Red** - Labs
+- 🟢 **Green** - Tutorials
+
+---
+
+🧩 *Future Enhancement:* integrate **Genetic Algorithm** or **Backtracking** for more efficient timetable optimization.
+- Export to PDF with custom formatting
+- Multi-section support for large classes
+- Student group and batch management
+- Room capacity validation against class size
+- Custom time slot configuration
+- Faculty workload balancing
+- Drag-and-drop manual adjustments
+
+---
+
+## 📤 Output Generated
+- Weekly timetable displayed in a tabular format (by day and slot)  
+- Option to **download as CSV or PDF**  
+- Cleanly formatted schedule showing course, faculty, and room per slot.
+
