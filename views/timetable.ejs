@@ -1,6 +1,4 @@
-        <% 
-        const hasGroupedData = typeof groupedByBranchYear !== 'undefined' && 
-                                <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -266,11 +264,13 @@
             <div class="tabs">
                 <% Object.keys(groupedByBranchYear).sort().forEach((key, index) => { 
                     const data = groupedByBranchYear[key];
-                    const branchClass = data.branch.toLowerCase().replace(/[^a-z]/g, '');
+                    // Skip invalid entries
+                    if (!data || !data.entries || key.includes('undefined')) return;
+                    const branchClass = key.toLowerCase().replace(/[^a-z]/g, '');
                 %>
                     <div class="tab <%= branchClass %> <%= index === 0 ? 'active' : '' %>" 
                          onclick="showTab('tab-<%= key %>')">
-                        <%= data.branch %> Year <%= data.year %>
+                        <%= key %>
                         <span style="opacity: 0.8; font-size: 0.85em;">(<%=data.entries.length%> classes)</span>
                     </div>
                 <% }); %>
