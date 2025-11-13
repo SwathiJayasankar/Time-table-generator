@@ -313,12 +313,15 @@
         <h1>📅 Class Timetables - All Branches & Years</h1>
         
         <div class="info-box">
-            <h3>📋 Duration-Based Scheduling Information</h3>
+            <h3>📋 Duration-Based Scheduling with Semester Split</h3>
             <ul>
                 <li><strong>Regular Courses:</strong> 2 Lectures (90 minutes each) + 1 Tutorial (60 minutes) - Each on different days</li>
                 <li><strong>Lab Courses:</strong> 1 Lab session (120 minutes = 2 hours)</li>
                 <li><strong>Smart Slot Allocation:</strong> System automatically finds consecutive time slots matching required duration</li>
                 <li><strong>Different Days Enforcement:</strong> All sessions of a course are scheduled on separate days to avoid student fatigue</li>
+                <li><strong>Pre-Mid Semester (First Half):</strong> High-credit courses (3-4 credits) - Core subjects with intensive coverage</li>
+                <li><strong>Post-Mid Semester (Second Half):</strong> Lower-credit courses (1-2 credits) - New lightweight courses + continued low-credit courses</li>
+                <li><strong>Credit-Based Filtering:</strong> High-credit courses (≥3 credits) from first half are automatically dropped and replaced with new courses</li>
             </ul>
         </div>
 
@@ -339,6 +342,7 @@
         
         <div class="actions">
             <a href="/" class="btn btn-primary">← Back to Upload</a>
+            <a href="/view-faculty" class="btn btn-primary">👨‍🏫 Faculty Timetables</a>
             <button class="btn btn-success" onclick="window.location.href='/download'">📥 Download CSV</button>
             <button class="btn btn-primary" onclick="window.print()">🖨️ Print All</button>
         </div>
@@ -387,10 +391,11 @@
                 validKeys.forEach((key, index) => { 
                     const data = groupedByBranchYear[key];
                     const branchClass = data.branch.toLowerCase().replace(/[^a-z]/g, '');
+                    const semesterLabel = data.semesterHalf === 'First_Half' ? '(1st Half)' : '(2nd Half)';
                 %>
                     <div class="tab <%= branchClass %> <%= index === 0 ? 'active' : '' %>" 
                          onclick="showTab('tab-<%= key %>')">
-                        <%= data.branch %> Year <%= data.year %>
+                        <%= data.branch %> Year <%= data.year %> <%= semesterLabel %>
                         <span style="opacity: 0.8; font-size: 0.85em;">(<%=data.entries.length%> slots)</span>
                     </div>
                 <% }); %>
@@ -408,7 +413,7 @@
             %>
                 <div id="tab-<%= key %>" class="tab-content <%= index === 0 ? 'active' : '' %>">
                     <div class="timetable-header <%= branchClass %>">
-                        <h2 style="margin: 0;"><%= data.branch %> - Year <%= data.year %> Timetable</h2>
+                        <h2 style="margin: 0;"><%= data.branch %> - Year <%= data.year %> Timetable (<%= data.semesterHalf.replace('_', ' ') %>)</h2>
                         <p style="margin-top: 5px; opacity: 0.9;">
                             Total Courses: <%= uniqueCourses.size %> | Total Slot Entries: <%= data.entries.length %>
                         </p>
@@ -457,15 +462,15 @@
                                                 <td class="<%= className %>">
                                                     <% if (entry) { %>
                                                         <span class="course-name"><%= entry.course %></span>
-                                                        <span class="slot-info"> <%= entry.faculty %></span>
-                                                        <span class="slot-info"> Room: <%= entry.room %></span>
+                                                        <span class="slot-info">👨‍🏫 <%= entry.faculty %></span>
+                                                        <span class="slot-info">🏫 Room: <%= entry.room %></span>
                                                         <span class="slot-info">
                                                             <% if (entry.type.toLowerCase().includes('lecture')) { %>
-                                                                 <%= entry.type %>
+                                                                📚 <%= entry.type %>
                                                             <% } else if (entry.type.toLowerCase().includes('tutorial')) { %>
-                                                                 <%= entry.type %>
+                                                                ✍️ <%= entry.type %>
                                                             <% } else if (entry.type.toLowerCase().includes('lab')) { %>
-                                                                 <%= entry.type %>
+                                                                🔬 <%= entry.type %>
                                                             <% } else { %>
                                                                 <%= entry.type %>
                                                             <% } %>
