@@ -71,16 +71,15 @@ const examSchema = new mongoose.Schema({
   courseName: String,
   credits: Number,
   branch: String,
+  year: Number,  // NEW: Added year field
   students: mongoose.Schema.Types.Mixed,
   invigilators: [String],
   rooms: [String],
+  roomInvigilatorPairs: [{
+    room: String,
+    invigilator: String
+  }],
   generatedAt: { type: Date, default: Date.now }
-});
-
-const invigilatorSchema = new mongoose.Schema({
-  name: String,
-  department: String,
-  availability: [String]
 });
 
 const examCourseSchema = new mongoose.Schema({
@@ -88,8 +87,14 @@ const examCourseSchema = new mongoose.Schema({
   name: String,
   credits: String,
   branch: String,
-  students: String,
-  type: String
+  year: Number,  // NEW: Added year field
+  students: String
+});
+
+const invigilatorSchema = new mongoose.Schema({
+  name: String,
+  department: String,
+  availability: [String]
 });
 
 const Course = mongoose.model('Course', courseSchema);
@@ -495,7 +500,7 @@ app.post('/generate-exam', async (req, res) => {
 
 app.get('/view-exam', async (req, res) => {
   try {
-    const examSchedule = await ExamSchedule.find().sort({ branch: 1, date: 1 });
+    const examSchedule = await ExamSchedule.find().sort({ branch: 1, year: 1, date: 1 });
     
     const groupedByBranch = {};
     
@@ -518,18 +523,19 @@ app.get('/view-exam', async (req, res) => {
   }
 });
 
+// Updated download-exam route
 app.get('/download-exam', async (req, res) => {
-  const examSchedule = await ExamSchedule.find().sort({ branch: 1, date: 1 });
+  const examSchedule = await ExamSchedule.find().sort({ branch: 1, year: 1, date: 1 });
   
-  let csvContent = 'Branch,Date,Day,Time Slot,Course Code,Course Name,Room,Invigilator\n';
+  let csvContent = 'Branch,Year,Date,Day,Time Slot,Course Code,Course Name,Credits,Students,Room,Invigilator\n';
   examSchedule.forEach(entry => {
     const roomInvPairs = entry.roomInvigilatorPairs || [];
     if (roomInvPairs.length > 0) {
       roomInvPairs.forEach(pair => {
-        csvContent += `${entry.branch},${entry.date},${entry.day},${entry.timeSlot},${entry.courseCode},"${entry.courseName}",${pair.room},${pair.invigilator}\n`;
+        csvContent += `${entry.branch},${entry.year},${entry.date},${entry.day},${entry.timeSlot},${entry.courseCode},"${entry.courseName}",${entry.credits},${entry.students},${pair.room},${pair.invigilator}\n`;
       });
     } else {
-      csvContent += `${entry.branch},${entry.date},${entry.day},${entry.timeSlot},${entry.courseCode},"${entry.courseName}","${entry.rooms.join(', ')}","${entry.invigilators.join(', ')}"\n`;
+      csvContent += `${entry.branch},${entry.year},${entry.date},${entry.day},${entry.timeSlot},${entry.courseCode},"${entry.courseName}",${entry.credits},${entry.students},"${entry.rooms.join(', ')}","${entry.invigilators.join(', ')}"\n`;
     }
   });
 
@@ -600,14 +606,14 @@ function generateTimetableWithSemesterSplit(courses, faculty, rooms) {
     if (semHalf === '0' && credits >= 3) return true;
     return false;
   });
-  
-  // Second Half: semesterHalf = '2' OR (semesterHalf = '0' AND credits < 3)
+
+  // Second Half: semesterHalf = '2' OR semesterHalf = '0'
+  // All '0' courses continue to second half, plus new '2' courses
   const secondHalfCourses = courses.filter(c => {
     const semHalf = c.semesterHalf;
-    const credits = c.credits;
     
-    if (semHalf === '2') return true;
-    if (semHalf === '0' && credits < 3) return true;
+    if (semHalf === '2') return true;  // New post-mid courses
+    if (semHalf === '0') return true;  // Courses running throughout semester
     return false;
   });
   
@@ -947,47 +953,74 @@ function generateExamSchedule(examCourses, invigilators, rooms) {
   const examSchedule = [];
   const invigilatorSchedule = {};
   const roomSchedule = {};
-  const branchDateUsage = {};
+  const branchYearDateUsage = {};
   
+  // Extended exam dates for all branches
   const examDates = [
-    { date: '20-Nov-2025', day: 'Thursday' },
-    { date: '21-Nov-2025', day: 'Friday' },
-    { date: '22-Nov-2025', day: 'Saturday' },
-    { date: '24-Nov-2025', day: 'Monday' },
-    { date: '25-Nov-2025', day: 'Tuesday' },
-    { date: '26-Nov-2025', day: 'Wednesday' },
-    { date: '27-Nov-2025', day: 'Thursday' },
-    { date: '28-Nov-2025', day: 'Friday' },
-    { date: '29-Nov-2025', day: 'Saturday' }
+    { date: '20-Nov-2025', day: 'Wednesday' },
+    { date: '21-Nov-2025', day: 'Thursday' },
+    { date: '22-Nov-2025', day: 'Friday' },
+    { date: '23-Nov-2025', day: 'Saturday' },
+    { date: '25-Nov-2025', day: 'Monday' },
+    { date: '26-Nov-2025', day: 'Tuesday' },
+    { date: '27-Nov-2025', day: 'Wednesday' },
+    { date: '28-Nov-2025', day: 'Thursday' },
+    { date: '29-Nov-2025', day: 'Friday' },
+    { date: '30-Nov-2025', day: 'Saturday' },
+    { date: '02-Dec-2025', day: 'Monday' },
+    { date: '03-Dec-2025', day: 'Tuesday' },
+    { date: '04-Dec-2025', day: 'Wednesday' },
+    { date: '05-Dec-2025', day: 'Thursday' },
+    { date: '06-Dec-2025', day: 'Friday' }
   ];
   
   const examSlots = [
-    { slot: 'FN: 09:00 AM to 10:30 AM', priority: 1 },
-    { slot: 'AN: 03:00 PM to 04:30 PM', priority: 2 }
+    { slot: 'FN: 09:00 AM - 12:00 PM', priority: 1 },
+    { slot: 'AN: 02:00 PM - 05:00 PM', priority: 2 }
   ];
 
-  const theoryCourses = examCourses.filter(course => {
-    const type = (course.type || '').toLowerCase();
-    return !type.includes('lab') && !type.includes('practical');
-  });
-
-  const coursesByBranch = {};
-  theoryCourses.forEach(course => {
+  // Group courses by branch and year
+  const coursesByBranchYear = {};
+  examCourses.forEach(course => {
     const branch = course.branch || 'Unknown';
-    if (!coursesByBranch[branch]) {
-      coursesByBranch[branch] = [];
+    const year = parseInt(course.year) || 1;
+    const key = `${branch}-Year${year}`;
+    
+    if (!coursesByBranchYear[key]) {
+      coursesByBranchYear[key] = {
+        branch: branch,
+        year: year,
+        courses: []
+      };
     }
-    coursesByBranch[branch].push(course);
+    coursesByBranchYear[key].courses.push(course);
   });
 
-  console.log('\n=== Scheduling Exams Branch-wise ===');
+  console.log('\n=== Scheduling Exams for All Branches & Years ===');
+  console.log(`Total branch-year combinations: ${Object.keys(coursesByBranchYear).length}`);
   
-  Object.keys(coursesByBranch).sort().forEach(branch => {
-    const courses = coursesByBranch[branch];
+  // Sort keys for consistent ordering
+  const sortedKeys = Object.keys(coursesByBranchYear).sort((a, b) => {
+    const [branchA, yearA] = a.split('-Year');
+    const [branchB, yearB] = b.split('-Year');
+    if (branchA !== branchB) return branchA.localeCompare(branchB);
+    return parseInt(yearA) - parseInt(yearB);
+  });
+  
+  sortedKeys.forEach(key => {
+    const data = coursesByBranchYear[key];
+    const { branch, year, courses } = data;
     
-    console.log(`Processing ${branch}: ${courses.length} courses`);
+    console.log(`\n=== ${branch} - Year ${year} ===`);
+    console.log(`Total courses: ${courses.length}`);
 
+    // Sort courses by credits (higher credits first)
     courses.sort((a, b) => {
+      const creditsA = parseInt(a.credits) || 0;
+      const creditsB = parseInt(b.credits) || 0;
+      if (creditsB !== creditsA) return creditsB - creditsA;
+      
+      // Then by student count
       const studentsA = parseInt(a.students) || 30;
       const studentsB = parseInt(b.students) || 30;
       return studentsB - studentsA;
@@ -998,14 +1031,12 @@ function generateExamSchedule(examCourses, invigilators, rooms) {
     courses.forEach(course => {
       let assigned = false;
       let attempts = 0;
-      const maxAttempts = examDates.length * examSlots.length;
+      const maxAttempts = examDates.length * examSlots.length * 2;
 
-      let studentsCount = 30;
-      if (course.students && course.students.toLowerCase() !== 'all') {
-        studentsCount = parseInt(course.students) || 30;
-      }
+      let studentsCount = parseInt(course.students) || 30;
       
-      const roomsNeeded = Math.ceil(studentsCount / 40);
+      // Calculate rooms needed (30 students per room)
+      const roomsNeeded = Math.ceil(studentsCount / 30);
       const invigilatorsNeeded = roomsNeeded;
 
       while (!assigned && attempts < maxAttempts) {
@@ -1016,13 +1047,15 @@ function generateExamSchedule(examCourses, invigilators, rooms) {
         const examSlot = examSlots[slotIndex];
         
         const scheduleKey = `${examDate.date}-${examSlot.slot}`;
-        const branchDateKey = `${branch}-${examDate.date}`;
+        const branchYearDateKey = `${branch}-${year}-${examDate.date}`;
 
-        if (branchDateUsage[branchDateKey]) {
+        // Check if this branch-year already has exam on this date
+        if (branchYearDateUsage[branchYearDateKey]) {
           attempts++;
           continue;
         }
 
+        // Find available rooms
         const availableRooms = [];
         for (let room of rooms) {
           const roomKey = `${room.number}-${scheduleKey}`;
@@ -1032,6 +1065,7 @@ function generateExamSchedule(examCourses, invigilators, rooms) {
           }
         }
 
+        // Find available invigilators
         const availableInvigilators = [];
         for (let inv of invigilators) {
           const invKey = `${inv.name}-${scheduleKey}`;
@@ -1041,23 +1075,28 @@ function generateExamSchedule(examCourses, invigilators, rooms) {
           }
         }
 
+        // Check if we have enough resources
         if (availableRooms.length >= roomsNeeded && 
             availableInvigilators.length >= invigilatorsNeeded) {
           
+          // Assign rooms
           const assignedRooms = availableRooms.slice(0, roomsNeeded);
           assignedRooms.forEach(room => {
             const roomKey = `${room.number}-${scheduleKey}`;
             roomSchedule[roomKey] = true;
           });
 
+          // Assign invigilators
           const assignedInvigilators = availableInvigilators.slice(0, invigilatorsNeeded);
           assignedInvigilators.forEach(inv => {
             const invKey = `${inv.name}-${scheduleKey}`;
             invigilatorSchedule[invKey] = true;
           });
 
-          branchDateUsage[branchDateKey] = true;
+          // Mark this date as used for this branch-year
+          branchYearDateUsage[branchYearDateKey] = true;
 
+          // Create room-invigilator pairs
           const roomInvigilatorPairs = [];
           assignedRooms.forEach((room, idx) => {
             const inv = assignedInvigilators[idx];
@@ -1067,6 +1106,7 @@ function generateExamSchedule(examCourses, invigilators, rooms) {
             });
           });
 
+          // Add to schedule
           examSchedule.push({
             date: examDate.date,
             day: examDate.day,
@@ -1075,29 +1115,38 @@ function generateExamSchedule(examCourses, invigilators, rooms) {
             courseName: course.name,
             credits: parseInt(course.credits) || 0,
             branch: branch,
-            students: course.students && course.students.toLowerCase() === 'all' ? 'All' : studentsCount,
+            year: year,
+            students: studentsCount,
             invigilators: assignedInvigilators.map(inv => inv.name),
             rooms: assignedRooms.map(room => room.number),
-            roomInvigilatorPairs: roomInvigilatorPairs,
-            type: course.type || 'Theory'
+            roomInvigilatorPairs: roomInvigilatorPairs
           });
 
-          console.log(`  ✓ ${course.code} scheduled on ${examDate.date} ${examSlot.slot}`);
+          console.log(`  ✓ ${course.code} (${course.credits} cr) - ${examDate.date} ${examSlot.slot}`);
           assigned = true;
-          dateIndex++;
+          dateIndex = (dateIndex + 1) % examDates.length;
         }
 
         attempts++;
       }
 
       if (!assigned) {
-        console.log(`  ✗ Could not assign ${course.code} - ${course.name}`);
+        console.log(`  ✗ FAILED: ${course.code} - ${course.name} (Not enough resources)`);
       }
     });
   });
 
-  console.log(`\n=== Summary ===`);
+  console.log(`\n=== Exam Scheduling Summary ===`);
   console.log(`Total exams scheduled: ${examSchedule.length}`);
+  
+  // Summary by branch and year
+  sortedKeys.forEach(key => {
+    const data = coursesByBranchYear[key];
+    const branchYearExams = examSchedule.filter(e => 
+      e.branch === data.branch && e.year === data.year
+    );
+    console.log(`  ${data.branch} Year ${data.year}: ${branchYearExams.length} exams`);
+  });
   
   return examSchedule;
 }

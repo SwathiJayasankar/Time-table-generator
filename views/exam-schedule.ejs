@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 1800px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -88,58 +88,114 @@
             font-size: 1.3em;
         }
 
-        /* Tabs */
-        .tabs {
+        /* Year Tabs - Main Level */
+        .year-tabs {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 30px;
-            border-bottom: 2px solid #e9ecef;
+            border-bottom: 3px solid #e9ecef;
             padding-bottom: 10px;
+            justify-content: center;
         }
 
-        .tab {
-            padding: 12px 25px;
-            background: #f8f9fa;
-            border: 2px solid #dee2e6;
-            border-radius: 8px 8px 0 0;
+        .year-tab {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 3px solid #dee2e6;
+            border-radius: 12px 12px 0 0;
             cursor: pointer;
             transition: all 0.3s;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 1.2em;
             color: #495057;
         }
 
-        .tab:hover {
-            background: #e9ecef;
+        .year-tab:hover {
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            transform: translateY(-2px);
         }
 
-        .tab.active {
-            background: #1e3c72;
+        .year-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-color: #1e3c72;
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
         }
 
-        .tab.cse.active {
-            background: #007bff;
-            border-color: #007bff;
-        }
-
-        .tab.dsai.active {
-            background: #28a745;
-            border-color: #28a745;
-        }
-
-        .tab.ece.active {
-            background: #dc3545;
-            border-color: #dc3545;
-        }
-
-        .tab-content {
+        .year-content {
             display: none;
         }
 
-        .tab-content.active {
+        .year-content.active {
             display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Branch Tabs - Second Level */
+        .branch-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 25px 0;
+            padding: 0 20px;
+            justify-content: center;
+        }
+
+        .branch-tab {
+            padding: 12px 35px;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #495057;
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .branch-tab:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .branch-tab.active.cse {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border-color: #007bff;
+        }
+
+        .branch-tab.active.dsai {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+            color: white;
+            border-color: #28a745;
+        }
+
+        .branch-tab.active.ece {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border-color: #dc3545;
+        }
+
+        .branch-content {
+            display: none;
+        }
+
+        .branch-content.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         /* Table Styles */
@@ -177,7 +233,7 @@
 
         tbody tr:hover {
             background: #f8f9fa;
-            transform: scale(1.01);
+            transform: scale(1.005);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
@@ -209,6 +265,7 @@
             border-radius: 5px;
             padding: 8px 12px;
             white-space: nowrap;
+            display: inline-block;
         }
 
         .course-code {
@@ -228,16 +285,13 @@
             padding: 8px 12px;
             border-radius: 5px;
             font-weight: 500;
+            margin-bottom: 3px;
+            display: inline-block;
         }
 
         .invigilator-cell {
             font-size: 0.9em;
             line-height: 1.6;
-        }
-
-        .invigilator-name {
-            display: block;
-            padding: 3px 0;
         }
 
         .branch-header {
@@ -246,6 +300,11 @@
             padding: 20px 25px;
             border-radius: 10px 10px 0 0;
             margin-bottom: 0;
+            margin-top: 20px;
+        }
+
+        .branch-header:first-child {
+            margin-top: 0;
         }
 
         .branch-header.cse {
@@ -277,10 +336,10 @@
             .container {
                 box-shadow: none;
             }
-            .actions, .tabs {
+            .actions, .year-tabs, .branch-tabs {
                 display: none;
             }
-            .tab-content {
+            .year-content, .branch-content {
                 display: block !important;
                 page-break-after: always;
             }
@@ -294,7 +353,7 @@
                 padding: 10px 8px;
                 font-size: 0.85em;
             }
-            .tab {
+            .year-tab, .branch-tab {
                 padding: 10px 15px;
                 font-size: 0.9em;
             }
@@ -305,7 +364,7 @@
     <div class="container">
         <div class="header">
             <h1>📋 End Semester Examination Schedule</h1>
-            <p>Academic Year 2025 | November Session</p>
+            <p>Academic Year 2025 | November - December Session</p>
         </div>
         
         <div class="actions">
@@ -316,111 +375,200 @@
 
         <% if (Object.keys(groupedByBranch).length === 0) { %>
             <div class="no-data">
-                📭 No exam schedule generated yet.<br>
+                🔭 No exam schedule generated yet.<br>
                 Please upload data and generate an exam schedule first.
             </div>
         <% } else { %>
-            <!-- Tabs -->
-            <div class="tabs">
-                <% Object.keys(groupedByBranch).sort().forEach((branch, index) => { 
-                    const data = groupedByBranch[branch];
-                    const branchClass = branch.toLowerCase().replace(/[^a-z]/g, '');
+            <%
+            // Reorganize data by Year -> Branch
+            const hierarchicalData = {};
+            
+            Object.keys(groupedByBranch).forEach(branchKey => {
+                const exams = groupedByBranch[branchKey].exams;
+                
+                exams.forEach(exam => {
+                    const year = exam.year || 1;
+                    const branch = exam.branch;
+                    
+                    if (!hierarchicalData[year]) {
+                        hierarchicalData[year] = {};
+                    }
+                    if (!hierarchicalData[year][branch]) {
+                        hierarchicalData[year][branch] = [];
+                    }
+                    hierarchicalData[year][branch].push(exam);
+                });
+            });
+            
+            const years = Object.keys(hierarchicalData).sort((a, b) => parseInt(a) - parseInt(b));
+            %>
+            
+            <!-- Year Tabs -->
+            <div class="year-tabs">
+                <% years.forEach((year, index) => { 
+                    const totalExams = Object.values(hierarchicalData[year]).flat().length;
                 %>
-                    <div class="tab <%= branchClass %> <%= index === 0 ? 'active' : '' %>" 
-                         onclick="showTab('tab-<%= branch %>')">
-                        <%= branch %>
-                        <span style="opacity: 0.8; font-size: 0.85em;">(<%=data.exams.length%> exams)</span>
+                    <div class="year-tab <%= index === 0 ? 'active' : '' %>" 
+                         onclick="showYear('year-<%= year %>')">
+                        📚 Year <%= year %>
+                        <div style="font-size: 0.75em; opacity: 0.9; margin-top: 3px;">
+                            <%= totalExams %> exams
+                        </div>
                     </div>
                 <% }); %>
             </div>
 
-            <!-- Tab Contents -->
-            <% Object.keys(groupedByBranch).sort().forEach((branch, index) => { 
-                const data = groupedByBranch[branch];
-                const branchClass = branch.toLowerCase().replace(/[^a-z]/g, '');
+            <!-- Year Contents -->
+            <% years.forEach((year, yearIndex) => { 
+                const branches = Object.keys(hierarchicalData[year]).sort();
             %>
-                <div id="tab-<%= branch %>" class="tab-content <%= index === 0 ? 'active' : '' %>">
-                    <div class="branch-header <%= branchClass %>">
-                        <div class="branch-title"><%= branch %> Branch</div>
-                        <div class="branch-subtitle">
-                            Total Exams: <%= data.exams.length %> | 
-                            Theory Only (Labs Excluded) | 
-                            1 Exam per Day
-                        </div>
+                <div id="year-<%= year %>" class="year-content <%= yearIndex === 0 ? 'active' : '' %>">
+                    
+                    <!-- Branch Tabs -->
+                    <div class="branch-tabs">
+                        <% branches.forEach((branch, branchIndex) => { 
+                            const branchClass = branch.toLowerCase().replace(/[^a-z]/g, '');
+                            const exams = hierarchicalData[year][branch];
+                        %>
+                            <div class="branch-tab <%= branchClass %> <%= branchIndex === 0 ? 'active' : '' %>" 
+                                 onclick="showBranch('year-<%= year %>-branch-<%= branch %>')">
+                                <%= branch %>
+                                <div style="font-size: 0.8em; opacity: 0.9; margin-top: 3px;">
+                                    <%= exams.length %> exams
+                                </div>
+                            </div>
+                        <% }); %>
                     </div>
 
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Day</th>
-                                    <th>Time</th>
-                                    <th>Course Code</th>
-                                    <th>Subject</th>
-                                    <th>Room</th>
-                                    <th>Invigilator</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% data.exams.forEach(exam => { %>
-                                    <tr>
-                                        <td class="date-cell"><%= exam.date %></td>
-                                        <td class="day-cell"><%= exam.day %></td>
-                                        <td><span class="time-cell"><%= exam.timeSlot %></span></td>
-                                        <td>
-                                            <div class="course-code"><%= exam.courseCode %></div>
-                                        </td>
-                                        <td>
-                                            <div class="course-name"><%= exam.courseName %></div>
-                                        </td>
-                                        <td>
-                                            <% if (exam.roomInvigilatorPairs && exam.roomInvigilatorPairs.length > 0) { %>
-                                                <% exam.roomInvigilatorPairs.forEach(pair => { %>
-                                                    <div class="room-cell" style="margin-bottom: 5px;"><%= pair.room %></div>
-                                                <% }); %>
-                                            <% } else { %>
-                                                <div class="room-cell"><%= exam.rooms.join(', ') %></div>
-                                            <% } %>
-                                        </td>
-                                        <td class="invigilator-cell">
-                                            <% if (exam.roomInvigilatorPairs && exam.roomInvigilatorPairs.length > 0) { %>
-                                                <% exam.roomInvigilatorPairs.forEach(pair => { %>
-                                                    <div style="margin-bottom: 5px;"><%= pair.invigilator %></div>
-                                                <% }); %>
-                                            <% } else { %>
-                                                <% exam.invigilators.forEach(inv => { %>
-                                                    <span class="invigilator-name"><%= inv %></span>
-                                                <% }); %>
-                                            <% } %>
-                                        </td>
-                                    </tr>
-                                <% }); %>
-                            </tbody>
-                        </table>
-                    </div>
+                    <!-- Branch Contents -->
+                    <% branches.forEach((branch, branchIndex) => { 
+                        const branchClass = branch.toLowerCase().replace(/[^a-z]/g, '');
+                        const exams = hierarchicalData[year][branch];
+                    %>
+                        <div id="year-<%= year %>-branch-<%= branch %>" 
+                             class="branch-content <%= branchIndex === 0 ? 'active' : '' %>">
+                            
+                            <div class="branch-header <%= branchClass %>">
+                                <div class="branch-title"><%= branch %> - Year <%= year %></div>
+                                <div class="branch-subtitle">
+                                    📚 Total Exams: <%= exams.length %> | 
+                                    🎓 Theory Courses Only | 
+                                    📅 One Exam per Day
+                                </div>
+                            </div>
+
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Day</th>
+                                            <th>Time</th>
+                                            <th>Course Code</th>
+                                            <th>Subject</th>
+                                            <th>Room(s)</th>
+                                            <th>Invigilator(s)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% exams.forEach(exam => { %>
+                                            <tr>
+                                                <td class="date-cell"><%= exam.date %></td>
+                                                <td class="day-cell"><%= exam.day %></td>
+                                                <td><span class="time-cell"><%= exam.timeSlot %></span></td>
+                                                <td>
+                                                    <div class="course-code"><%= exam.courseCode %></div>
+                                                </td>
+                                                <td>
+                                                    <div class="course-name"><%= exam.courseName %></div>
+                                                </td>
+                                                <td>
+                                                    <% if (exam.roomInvigilatorPairs && exam.roomInvigilatorPairs.length > 0) { %>
+                                                        <% exam.roomInvigilatorPairs.forEach(pair => { %>
+                                                            <div class="room-cell"><%= pair.room %></div>
+                                                        <% }); %>
+                                                    <% } else { %>
+                                                        <div class="room-cell"><%= exam.rooms.join(', ') %></div>
+                                                    <% } %>
+                                                </td>
+                                                <td class="invigilator-cell">
+                                                    <% if (exam.roomInvigilatorPairs && exam.roomInvigilatorPairs.length > 0) { %>
+                                                        <% exam.roomInvigilatorPairs.forEach(pair => { %>
+                                                            <div style="margin-bottom: 3px;"><%= pair.invigilator %></div>
+                                                        <% }); %>
+                                                    <% } else { %>
+                                                        <% exam.invigilators.forEach(inv => { %>
+                                                            <div style="margin-bottom: 3px;"><%= inv %></div>
+                                                        <% }); %>
+                                                    <% } %>
+                                                </td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    <% }); %>
                 </div>
             <% }); %>
         <% } %>
     </div>
 
     <script>
-        function showTab(tabId) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
+        function showYear(yearId) {
+            // Hide all year contents
+            document.querySelectorAll('.year-content').forEach(content => {
                 content.classList.remove('active');
             });
             
-            // Remove active class from all tabs
-            document.querySelectorAll('.tab').forEach(tab => {
+            // Remove active class from all year tabs
+            document.querySelectorAll('.year-tab').forEach(tab => {
                 tab.classList.remove('active');
             });
             
-            // Show selected tab content
-            document.getElementById(tabId).classList.add('active');
+            // Show selected year content
+            const selectedContent = document.getElementById(yearId);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
             
-            // Add active class to clicked tab
-            event.target.classList.add('active');
+            // Add active class to clicked year tab
+            if (event && event.target) {
+                const clickedTab = event.target.closest('.year-tab');
+                if (clickedTab) {
+                    clickedTab.classList.add('active');
+                }
+            }
+        }
+
+        function showBranch(branchId) {
+            // Find parent year content
+            const selectedContent = document.getElementById(branchId);
+            if (!selectedContent) return;
+            
+            const parentYear = selectedContent.closest('.year-content');
+            if (!parentYear) return;
+            
+            // Hide all branch contents in this year
+            parentYear.querySelectorAll('.branch-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all branch tabs in this year
+            parentYear.querySelectorAll('.branch-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected branch content
+            selectedContent.classList.add('active');
+            
+            // Add active class to clicked branch tab
+            if (event && event.target) {
+                const clickedTab = event.target.closest('.branch-tab');
+                if (clickedTab) {
+                    clickedTab.classList.add('active');
+                }
+            }
         }
     </script>
 </body>
