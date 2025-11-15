@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 1800px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -70,7 +70,6 @@
             background: #218838;
         }
 
-        /* Info box for duration logic */
         .info-box {
             background: #e7f3ff;
             border-left: 4px solid #0d6efd;
@@ -94,58 +93,156 @@
             margin: 5px 0;
         }
 
-        /* Tabs */
-        .tabs {
+        /* Year Tabs - Main Level */
+        .year-tabs {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+            gap: 15px;
             margin-bottom: 30px;
-            border-bottom: 2px solid #e9ecef;
+            border-bottom: 3px solid #e9ecef;
             padding-bottom: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
-        .tab {
-            padding: 12px 25px;
-            background: #f8f9fa;
-            border: 2px solid #dee2e6;
-            border-radius: 8px 8px 0 0;
+        .year-tab {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 3px solid #dee2e6;
+            border-radius: 12px 12px 0 0;
             cursor: pointer;
             transition: all 0.3s;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 1.2em;
             color: #495057;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        .tab:hover {
-            background: #e9ecef;
+        .year-tab:hover {
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            transform: translateY(-2px);
         }
 
-        .tab.active {
-            background: #667eea;
+        .year-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
         }
 
-        .tab.cse.active {
-            background: #007bff;
-            border-color: #007bff;
-        }
-
-        .tab.dsai.active {
-            background: #28a745;
-            border-color: #28a745;
-        }
-
-        .tab.ece.active {
-            background: #dc3545;
-            border-color: #dc3545;
-        }
-
-        .tab-content {
+        .year-content {
             display: none;
         }
 
-        .tab-content.active {
+        .year-content.active {
             display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Branch Tabs - Second Level */
+        .branch-tabs {
+            display: flex;
+            gap: 12px;
+            margin: 25px 0;
+            padding: 0 20px;
+            flex-wrap: wrap;
+        }
+
+        .branch-tab {
+            padding: 12px 30px;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 1.05em;
+            color: #495057;
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .branch-tab:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .branch-tab.active.cse {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border-color: #007bff;
+        }
+
+        .branch-tab.active.dsai {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+            color: white;
+            border-color: #28a745;
+        }
+
+        .branch-tab.active.ece {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border-color: #dc3545;
+        }
+
+        .branch-content {
+            display: none;
+        }
+
+        .branch-content.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Semester Half Tabs - Third Level */
+        .semester-tabs {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+
+        .semester-tab {
+            padding: 12px 50px;
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #856404;
+        }
+
+        .semester-tab:hover {
+            background: #ffe69c;
+            border-color: #ffb800;
+        }
+
+        .semester-tab.active {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: white;
+            border-color: #ffc107;
+            box-shadow: 0 3px 6px rgba(255, 193, 7, 0.4);
+        }
+
+        .semester-content {
+            display: none;
+        }
+
+        .semester-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
         }
 
         .timetable-header {
@@ -154,6 +251,7 @@
             padding: 20px;
             border-radius: 10px 10px 0 0;
             margin-bottom: 0;
+            margin-top: 20px;
         }
 
         .timetable-header.cse {
@@ -198,7 +296,6 @@
             min-width: 100px;
         }
 
-        /* Special styling for break slots */
         th.break-slot {
             background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
             font-style: italic;
@@ -209,6 +306,7 @@
             text-align: center;
             border: 1px solid #dee2e6;
             min-width: 120px;
+            vertical-align: middle;
         }
 
         td:first-child {
@@ -220,7 +318,17 @@
             z-index: 9;
         }
 
-        /* Break time cells */
+        /* Merged cell styling */
+        td[colspan]:not([colspan="1"]) {
+            font-size: 0.95em;
+            padding: 15px 10px;
+        }
+
+        td[colspan]:not([colspan="1"]) .course-name {
+            font-size: 1.15em;
+            font-weight: 700;
+        }
+
         td.break-time {
             background: repeating-linear-gradient(
                 45deg,
@@ -269,7 +377,6 @@
             font-size: 1.2em;
         }
 
-        /* Legend */
         .legend {
             display: flex;
             justify-content: center;
@@ -298,10 +405,10 @@
             .container {
                 box-shadow: none;
             }
-            .actions, .tabs, .info-box {
+            .actions, .year-tabs, .branch-tabs, .semester-tabs, .info-box {
                 display: none;
             }
-            .tab-content {
+            .year-content, .branch-content, .semester-content {
                 display: block !important;
                 page-break-after: always;
             }
@@ -310,7 +417,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📅 Class Timetables - All Branches & Years</h1>
+        <h1>📅 Class Timetables - Hierarchical View</h1>
         
         <div class="info-box">
             <h3>📋 Duration-Based Scheduling with Semester Split</h3>
@@ -352,7 +459,6 @@
                                groupedByBranchYear !== null && 
                                Object.keys(groupedByBranchYear).length > 0;
         
-        // Define all time slots including breaks for display purposes
         const allTimeSlots = [
             '09:00 - 10:00',
             '10:00 - 10:30',
@@ -380,136 +486,361 @@
                 Please upload data and generate a timetable first.
             </div>
         <% } else { %>
-            <!-- Tabs -->
-            <div class="tabs">
-                <% 
-                const validKeys = Object.keys(groupedByBranchYear).filter(key => {
-                    const data = groupedByBranchYear[key];
-                    return data && data.branch && data.year && data.entries && data.entries.length > 0;
-                }).sort();
+            <%
+            // Organize data: Year -> Branch -> Section -> SemesterHalf
+            const hierarchy = {};
+            
+            Object.keys(groupedByBranchYear).forEach(key => {
+                const data = groupedByBranchYear[key];
+                const year = data.year;
+                const branch = data.branch;
+                const section = data.section || '';
+                const semesterHalf = data.semesterHalf;
                 
-                validKeys.forEach((key, index) => { 
-                    const data = groupedByBranchYear[key];
-                    const branchClass = data.branch.toLowerCase().replace(/[^a-z]/g, '');
-                    const semesterLabel = data.semesterHalf === 'First_Half' ? '(1st Half)' : '(2nd Half)';
-                %>
-                    <div class="tab <%= branchClass %> <%= index === 0 ? 'active' : '' %>" 
-                         onclick="showTab('tab-<%= key %>')">
-                        <%= data.branch %> Year <%= data.year %> <%= semesterLabel %>
-                        <span style="opacity: 0.8; font-size: 0.85em;">(<%=data.entries.length%> slots)</span>
+                if (!hierarchy[year]) {
+                    hierarchy[year] = {};
+                }
+                if (!hierarchy[year][branch]) {
+                    hierarchy[year][branch] = {};
+                }
+                if (!hierarchy[year][branch][section]) {
+                    hierarchy[year][branch][section] = {};
+                }
+                hierarchy[year][branch][section][semesterHalf] = data;
+            });
+            
+            const years = Object.keys(hierarchy).sort((a, b) => parseInt(a) - parseInt(b));
+            %>
+
+            <!-- Year Tabs -->
+            <div class="year-tabs">
+                <% years.forEach((year, yearIndex) => { %>
+                    <div class="year-tab <%= yearIndex === 0 ? 'active' : '' %>" 
+                         onclick="showYear('year-<%= year %>')">
+                        📚 Year <%= year %>
                     </div>
                 <% }); %>
             </div>
 
-            <!-- Tab Contents -->
-            <% validKeys.forEach((key, index) => { 
-                const data = groupedByBranchYear[key];
-                const branchClass = data.branch.toLowerCase().replace(/[^a-z]/g, '');
-                
-                // Count unique courses (removing part indicators and session numbers)
-                const uniqueCourses = new Set(data.entries.map(entry => {
-                    return entry.course.split(' - ')[0].split(' (')[0];
-                }));
+            <!-- Year Contents -->
+            <% years.forEach((year, yearIndex) => { 
+                const branches = Object.keys(hierarchy[year]).sort();
             %>
-                <div id="tab-<%= key %>" class="tab-content <%= index === 0 ? 'active' : '' %>">
-                    <div class="timetable-header <%= branchClass %>">
-                        <h2 style="margin: 0;"><%= data.branch %> - Year <%= data.year %> Timetable (<%= data.semesterHalf.replace('_', ' ') %>)</h2>
-                        <p style="margin-top: 5px; opacity: 0.9;">
-                            Total Courses: <%= uniqueCourses.size %> | Total Slot Entries: <%= data.entries.length %>
-                        </p>
+                <div id="year-<%= year %>" class="year-content <%= yearIndex === 0 ? 'active' : '' %>">
+                    
+                    <!-- Branch Tabs -->
+                    <div class="branch-tabs">
+                        <% branches.forEach((branch, branchIndex) => { 
+                            const branchClass = branch.toLowerCase().replace(/[^a-z]/g, '');
+                            const sections = Object.keys(hierarchy[year][branch]).sort();
+                            
+                            // Calculate total slots for all sections in this branch
+                            let totalSlots = 0;
+                            sections.forEach(section => {
+                                const sectionData = hierarchy[year][branch][section];
+                                if (sectionData) {
+                                    Object.values(sectionData).forEach(semData => {
+                                        if (semData && semData.entries) {
+                                            totalSlots += semData.entries.length;
+                                        }
+                                    });
+                                }
+                            });
+                        %>
+                            <div class="branch-tab <%= branchClass %> <%= branchIndex === 0 ? 'active' : '' %>" 
+                                 onclick="showBranch('year-<%= year %>-branch-<%= branch %>')">
+                                <%= branch %>
+                                <div style="font-size: 0.85em; opacity: 0.9; margin-top: 3px;">
+                                    <% if (sections.length > 1 && sections.filter(s => s !== '').length > 0) { %>
+                                        <%= sections.filter(s => s !== '').length %> sections | <%= totalSlots %> slots
+                                    <% } else { %>
+                                        <%= totalSlots %> slots
+                                    <% } %>
+                                </div>
+                            </div>
+                        <% }); %>
                     </div>
 
-                    <div class="timetable-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>DAY</th>
-                                    <% allTimeSlots.forEach(slotData => { 
-                                        const isBreak = typeof slotData === 'object' && slotData.isBreak;
-                                        const slot = isBreak ? slotData.slot : slotData;
-                                        const label = isBreak ? slotData.label : slot;
+                    <!-- Branch Contents -->
+                    <% branches.forEach((branch, branchIndex) => { 
+                        const branchClass = branch.toLowerCase().replace(/[^a-z]/g, '');
+                        const sections = Object.keys(hierarchy[year][branch]).sort();
+                    %>
+                        <div id="year-<%= year %>-branch-<%= branch %>" 
+                             class="branch-content <%= branchIndex === 0 ? 'active' : '' %>">
+                            
+                            <% sections.forEach((section, sectionIndex) => { 
+                                const sectionData = hierarchy[year][branch][section];
+                                const semesterHalves = ['First_Half', 'Second_Half'].filter(sh => 
+                                    sectionData && sectionData[sh] && sectionData[sh].entries
+                                );
+                                
+                                if (semesterHalves.length === 0) return;
+                            %>
+                                <!-- Semester Half Tabs -->
+                                <div class="semester-tabs">
+                                    <% semesterHalves.forEach((semHalf, semIndex) => { 
+                                        const semLabel = semHalf === 'First_Half' ? '📅 First Half (Pre-Mid)' : '📅 Second Half (Post-Mid)';
+                                        const data = sectionData[semHalf];
                                     %>
-                                        <th class="<%= isBreak ? 'break-slot' : '' %>"><%= label %></th>
+                                        <div class="semester-tab <%= semIndex === 0 ? 'active' : '' %>" 
+                                             onclick="showSemester('year-<%= year %>-branch-<%= branch %>-sec-<%= section %>-sem-<%= semHalf %>')">
+                                            <%= semLabel %>
+                                            <% if (section) { %> - Section <%= section %><% } %>
+                                            <div style="font-size: 0.85em; opacity: 0.95; margin-top: 3px;">
+                                                <%= data.entries ? data.entries.length : 0 %> classes
+                                            </div>
+                                        </div>
                                     <% }); %>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% days.forEach(day => { %>
-                                    <tr>
-                                        <td><%= day %></td>
-                                        <% allTimeSlots.forEach(slotData => { 
-                                            const isBreak = typeof slotData === 'object' && slotData.isBreak;
-                                            const slot = isBreak ? slotData.slot : slotData;
-                                        %>
-                                            <% if (isBreak) { %>
-                                                <td class="break-time">🍽️</td>
-                                            <% } else { %>
-                                                <% 
-                                                    const entry = data.entries.find(t => 
-                                                        t.day === day && 
-                                                        t.timeSlot === slot &&
-                                                        t.branch === data.branch &&
-                                                        t.year === data.year
-                                                    );
-                                                    let className = '';
-                                                    if (entry) {
-                                                        const typeStr = (entry.type || '').toLowerCase();
-                                                        if (typeStr.includes('lab')) className = 'lab';
-                                                        else if (typeStr.includes('tutorial')) className = 'tutorial';
-                                                        else className = 'lecture';
-                                                    }
-                                                %>
-                                                <td class="<%= className %>">
-                                                    <% if (entry) { %>
-                                                        <span class="course-name"><%= entry.course %></span>
-                                                        <span class="slot-info">👨‍🏫 <%= entry.faculty %></span>
-                                                        <span class="slot-info">🏫 Room: <%= entry.room %></span>
-                                                        <span class="slot-info">
-                                                            <% if (entry.type.toLowerCase().includes('lecture')) { %>
-                                                                📚 <%= entry.type %>
-                                                            <% } else if (entry.type.toLowerCase().includes('tutorial')) { %>
-                                                                ✍️ <%= entry.type %>
-                                                            <% } else if (entry.type.toLowerCase().includes('lab')) { %>
-                                                                🔬 <%= entry.type %>
-                                                            <% } else { %>
-                                                                <%= entry.type %>
-                                                            <% } %>
-                                                        </span>
-                                                    <% } %>
-                                                </td>
-                                            <% } %>
-                                        <% }); %>
-                                    </tr>
+                                </div>
+
+                                <!-- Semester Half Contents -->
+                                <% semesterHalves.forEach((semHalf, semIndex) => { 
+                                    const data = sectionData[semHalf];
+                                    if (!data || !data.entries) return;
+                                    
+                                    const uniqueCourses = new Set(data.entries.map(entry => {
+                                        return entry.course.split(' - ')[0].split(' (')[0];
+                                    }));
+                                %>
+                                    <div id="year-<%= year %>-branch-<%= branch %>-sec-<%= section %>-sem-<%= semHalf %>" 
+                                         class="semester-content <%= semIndex === 0 ? 'active' : '' %>">
+                                        
+                                        <div class="timetable-header <%= branchClass %>">
+                                            <h2 style="margin: 0;">
+                                                <%= branch %> - Year <%= year %> 
+                                                <% if (section) { %> - Section <%= section %><% } %>
+                                                (<%= semHalf.replace('_', ' ') %>)
+                                            </h2>
+                                            <p style="margin-top: 8px; opacity: 0.95; font-size: 1.05em;">
+                                                📚 Courses: <%= uniqueCourses.size %> | 
+                                                📊 Total Slots: <%= data.entries.length %> |
+                                                💡 <%= semHalf === 'First_Half' ? 'High-credit intensive courses' : 'Lighter elective courses' %>
+                                            </p>
+                                        </div>
+
+                                        <div class="timetable-wrapper">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>DAY</th>
+                                                        <% allTimeSlots.forEach(slotData => { 
+                                                            const isBreak = typeof slotData === 'object' && slotData.isBreak;
+                                                            const slot = isBreak ? slotData.slot : slotData;
+                                                            const label = isBreak ? slotData.label : slot;
+                                                        %>
+                                                            <th class="<%= isBreak ? 'break-slot' : '' %>"><%= label %></th>
+                                                        <% }); %>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <% days.forEach(day => { 
+                                                        // Build row data with merged cells
+                                                        const rowData = [];
+                                                        const processedSlots = new Set();
+                                                        
+                                                        allTimeSlots.forEach((slotData, slotIndex) => {
+                                                            const isBreak = typeof slotData === 'object' && slotData.isBreak;
+                                                            const slot = isBreak ? slotData.slot : slotData;
+                                                            
+                                                            if (isBreak) {
+                                                                rowData.push({
+                                                                    isBreak: true,
+                                                                    colspan: 1,
+                                                                    slot: slot
+                                                                });
+                                                            } else if (!processedSlots.has(slotIndex)) {
+                                                                const entry = data.entries.find(t => 
+                                                                    t.day === day && t.timeSlot === slot
+                                                                );
+                                                                
+                                                                if (entry) {
+                                                                    // Check for continuous slots with same course
+                                                                    let colspan = 1;
+                                                                    const baseCourse = entry.course.split(' (')[0]; // Remove (1/2) part
+                                                                    
+                                                                    for (let i = slotIndex + 1; i < allTimeSlots.length; i++) {
+                                                                        const nextSlotData = allTimeSlots[i];
+                                                                        const nextIsBreak = typeof nextSlotData === 'object' && nextSlotData.isBreak;
+                                                                        
+                                                                        if (nextIsBreak) break; // Stop at breaks
+                                                                        
+                                                                        const nextSlot = nextIsBreak ? nextSlotData.slot : nextSlotData;
+                                                                        const nextEntry = data.entries.find(t => 
+                                                                            t.day === day && t.timeSlot === nextSlot
+                                                                        );
+                                                                        
+                                                                        if (nextEntry) {
+                                                                            const nextBaseCourse = nextEntry.course.split(' (')[0];
+                                                                            if (nextBaseCourse === baseCourse && 
+                                                                                nextEntry.faculty === entry.faculty &&
+                                                                                nextEntry.room === entry.room) {
+                                                                                colspan++;
+                                                                                processedSlots.add(i);
+                                                                            } else {
+                                                                                break;
+                                                                            }
+                                                                        } else {
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    rowData.push({
+                                                                        isBreak: false,
+                                                                        colspan: colspan,
+                                                                        entry: entry,
+                                                                        baseCourse: baseCourse
+                                                                    });
+                                                                    processedSlots.add(slotIndex);
+                                                                } else {
+                                                                    rowData.push({
+                                                                        isBreak: false,
+                                                                        colspan: 1,
+                                                                        entry: null
+                                                                    });
+                                                                }
+                                                            }
+                                                        });
+                                                    %>
+                                                        <tr>
+                                                            <td><%= day %></td>
+                                                            <% rowData.forEach(cell => { %>
+                                                                <% if (cell.isBreak) { %>
+                                                                    <td class="break-time" colspan="<%= cell.colspan %>">🍽️</td>
+                                                                <% } else if (cell.entry) { 
+                                                                    const typeStr = (cell.entry.type || '').toLowerCase();
+                                                                    let className = '';
+                                                                    if (typeStr.includes('lab')) className = 'lab';
+                                                                    else if (typeStr.includes('tutorial')) className = 'tutorial';
+                                                                    else className = 'lecture';
+                                                                %>
+                                                                    <td class="<%= className %>" colspan="<%= cell.colspan %>">
+                                                                        <span class="course-name"><%= cell.baseCourse %></span>
+                                                                        <span class="slot-info">👨‍🏫 <%= cell.entry.faculty %></span>
+                                                                        <span class="slot-info">🏫 Room: <%= cell.entry.room %></span>
+                                                                        <span class="slot-info">
+                                                                            <% if (cell.entry.type.toLowerCase().includes('lecture')) { %>
+                                                                                📚 <%= cell.entry.type %>
+                                                                            <% } else if (cell.entry.type.toLowerCase().includes('tutorial')) { %>
+                                                                                ✏️ <%= cell.entry.type %>
+                                                                            <% } else if (cell.entry.type.toLowerCase().includes('lab')) { %>
+                                                                                🔬 <%= cell.entry.type %>
+                                                                            <% } else { %>
+                                                                                <%= cell.entry.type %>
+                                                                            <% } %>
+                                                                        </span>
+                                                                    </td>
+                                                                <% } else { %>
+                                                                    <td colspan="<%= cell.colspan %>"></td>
+                                                                <% } %>
+                                                            <% }); %>
+                                                        </tr>
+                                                    <% }); %>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 <% }); %>
-                            </tbody>
-                        </table>
-                    </div>
+                            <% }); %>
+                        </div>
+                    <% }); %>
                 </div>
             <% }); %>
         <% } %>
     </div>
 
+
+
     <script>
-        function showTab(tabId) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
+        function showYear(yearId) {
+            document.querySelectorAll('.year-content').forEach(content => {
                 content.classList.remove('active');
             });
             
-            // Remove active class from all tabs
-            document.querySelectorAll('.tab').forEach(tab => {
+            document.querySelectorAll('.year-tab').forEach(tab => {
                 tab.classList.remove('active');
             });
             
-            // Show selected tab content
-            const selectedContent = document.getElementById(tabId);
+            const selectedContent = document.getElementById(yearId);
             if (selectedContent) {
                 selectedContent.classList.add('active');
             }
             
-            // Add active class to clicked tab
             if (event && event.target) {
                 event.target.classList.add('active');
+            }
+        }
+
+        function showBranch(branchId) {
+            const parentYear = document.getElementById(branchId).closest('.year-content');
+            
+            parentYear.querySelectorAll('.branch-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            parentYear.querySelectorAll('.branch-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            const selectedContent = document.getElementById(branchId);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
+            
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+        }
+
+        function showSection(sectionId) {
+            const parentBranch = document.getElementById(sectionId).closest('.branch-content');
+            
+            parentBranch.querySelectorAll('.section-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            parentBranch.querySelectorAll('.semester-tab[onclick*="showSection"]').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            const selectedContent = document.getElementById(sectionId);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
+            
+            if (event && event.target && event.target.getAttribute('onclick').includes('showSection')) {
+                event.target.classList.add('active');
+            }
+        }
+
+        function showSemester(semesterId) {
+            // Find the selected content element
+            const selectedContent = document.getElementById(semesterId);
+            if (!selectedContent) return;
+            
+            // Find the parent branch content
+            const parentBranch = selectedContent.closest('.branch-content');
+            if (!parentBranch) return;
+            
+            // Hide all semester contents in this branch
+            parentBranch.querySelectorAll('.semester-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Deactivate all semester tabs in this branch
+            parentBranch.querySelectorAll('.semester-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected semester content
+            selectedContent.classList.add('active');
+            
+            // Activate clicked tab
+            if (event && event.target) {
+                const clickedElement = event.target.closest('.semester-tab');
+                if (clickedElement) {
+                    clickedElement.classList.add('active');
+                }
             }
         }
     </script>
