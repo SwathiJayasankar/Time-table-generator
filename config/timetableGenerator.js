@@ -1,5 +1,5 @@
 // TIMETABLE GENERATOR MODULE
-// Features: Duration-based slot allocation, Semester split, Conflict prevention
+// Features: Duration-based slot allocation, Semester split, Conflict prevention, Elective slot reservation
 
 // Available time slots (excluding break times)
 const timeSlots = [
@@ -35,7 +35,6 @@ function isElectiveSlot(day, slot) {
   return electiveSlots[day] && electiveSlots[day].includes(slot);
 }
 
-
 /**
  * Calculate duration of a time slot in minutes
  * Example: "09:00 - 10:00" → 60 minutes
@@ -54,6 +53,7 @@ function getSlotDuration(slot) {
 /**
  * Define continuous time blocks (no breaks in between)
  * Ensures multi-slot courses aren't interrupted by break times
+ * Note: Elective slots (17:10-18:30) are included here but checked separately per day
  */
 function getContinuousTimeBlocks() {
   return [
@@ -244,6 +244,7 @@ function generateTimetableWithSemesterSplit(courses, faculty, rooms) {
  * 4. Schedule labs: 120min blocks using progressive fallback strategies
  * 
  * Conflict Prevention: Uses hashtables to track faculty/room/student availability
+ * Elective Slot Protection: Skips Tuesday/Thursday 17:10-18:30 slots
  */
 function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
   const timetable = [];
@@ -289,6 +290,13 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
     branchYearSectionSchedule[branchYearSectionKey] = {};
     days.forEach(day => {
       branchYearSectionSchedule[branchYearSectionKey][day] = {};
+      
+      // Mark elective slots as occupied so courses won't be scheduled there
+      if (electiveSlots[day]) {
+        electiveSlots[day].forEach(slot => {
+          branchYearSectionSchedule[branchYearSectionKey][day][slot] = 'ELECTIVE_RESERVED';
+        });
+      }
     });
 
     const labCourses = branchCourses.filter(c => (c.type || '').toLowerCase().includes('lab'));
@@ -332,6 +340,14 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
           }
 
           const slotsToUse = combination.slots;
+          
+          // Check if any slot conflicts with elective slots FOR THIS SPECIFIC DAY
+          const hasElectiveConflict = slotsToUse.some(slot => isElectiveSlot(day, slot));
+          if (hasElectiveConflict) {
+            attempts++;
+            continue;
+          }
+          
           let selectedRoom;
           const classrooms = rooms.filter(r => (r.type || '').toLowerCase().includes('class'));
           selectedRoom = classrooms.length > 0 ? 
@@ -438,19 +454,31 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
           }
         }
         
-        // Strategy 3: Just take ANY 2 consecutive available slots
+        // Strategy 3: Just take ANY 2 consecutive available slots (excluding elective slots for Tue/Thu)
         if (slotsToUse.length === 0 && attempts > maxAttempts * 0.5) {
-          const startIdx = Math.floor(Math.random() * (timeSlots.length - 1));
-          slotsToUse = [timeSlots[startIdx], timeSlots[startIdx + 1]];
+          // Filter out elective slots only for Tuesday and Thursday
+          const availableSlots = timeSlots.filter(slot => !isElectiveSlot(day, slot));
           
-          totalMinutes = 0;
-          for (const slot of slotsToUse) {
-            totalMinutes += getSlotDuration(slot);
+          if (availableSlots.length >= 2) {
+            const startIdx = Math.floor(Math.random() * (availableSlots.length - 1));
+            slotsToUse = [availableSlots[startIdx], availableSlots[startIdx + 1]];
+            
+            totalMinutes = 0;
+            for (const slot of slotsToUse) {
+              totalMinutes += getSlotDuration(slot);
+            }
+            slotSource = 'any-2-slots';
           }
-          slotSource = 'any-2-slots';
         }
         
         if (slotsToUse.length === 0) {
+          attempts++;
+          continue;
+        }
+        
+        // Double-check no elective slots FOR THIS SPECIFIC DAY
+        const hasElectiveConflict = slotsToUse.some(slot => isElectiveSlot(day, slot));
+        if (hasElectiveConflict) {
           attempts++;
           continue;
         }
@@ -516,5 +544,7 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
 module.exports = {
   generateTimetableWithSemesterSplit,
   timeSlots,
-  days
+  days,
+  electiveSlots,
+  isElectiveSlot
 };

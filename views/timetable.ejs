@@ -301,6 +301,12 @@
             font-style: italic;
         }
 
+        th.elective-slot-header {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            font-style: italic;
+            font-weight: 700;
+        }
+
         td {
             padding: 12px 8px;
             text-align: center;
@@ -340,6 +346,21 @@
             color: #6c757d;
             font-style: italic;
             font-weight: 600;
+        }
+
+        .elective-slot {
+            background: repeating-linear-gradient(
+                45deg,
+                #fff3cd,
+                #fff3cd 10px,
+                #ffe69c 10px,
+                #ffe69c 20px
+            );
+            color: #856404;
+            font-style: italic;
+            font-weight: 700;
+            border: 2px solid #ffc107;
+            font-size: 0.95em;
         }
 
         .lecture {
@@ -398,6 +419,17 @@
             border-radius: 4px;
         }
 
+        .legend-box.elective {
+            background: repeating-linear-gradient(
+                45deg,
+                #fff3cd,
+                #fff3cd 5px,
+                #ffe69c 5px,
+                #ffe69c 10px
+            );
+            border: 1px solid #ffc107;
+        }
+
         @media print {
             body {
                 background: white;
@@ -426,6 +458,7 @@
                 <li><strong>Lab Courses:</strong> 1 Lab session (120 minutes = 2 hours)</li>
                 <li><strong>Smart Slot Allocation:</strong> System automatically finds consecutive time slots matching required duration</li>
                 <li><strong>Different Days Enforcement:</strong> All sessions of a course are scheduled on separate days to avoid student fatigue</li>
+                <li><strong>Elective Slots:</strong> Tuesday & Thursday 17:10-18:30 reserved for elective courses (no regular classes scheduled)</li>
                 <li><strong>Pre-Mid Semester (First Half):</strong> High-credit courses (3-4 credits) - Core subjects with intensive coverage</li>
                 <li><strong>Post-Mid Semester (Second Half):</strong> Lower-credit courses (1-2 credits) - New lightweight courses + continued low-credit courses</li>
                 <li><strong>Credit-Based Filtering:</strong> High-credit courses (≥3 credits) from first half are automatically dropped and replaced with new courses</li>
@@ -445,6 +478,10 @@
                 <div class="legend-box lab"></div>
                 <span>Lab (120 mins)</span>
             </div>
+            <div class="legend-item">
+                <div class="legend-box elective"></div>
+                <span>Elective Slot (Tue/Thu 17:10-18:30)</span>
+            </div>
         </div>
         
         <div class="actions">
@@ -458,6 +495,16 @@
         const hasGroupedData = typeof groupedByBranchYear !== 'undefined' && 
                                groupedByBranchYear !== null && 
                                Object.keys(groupedByBranchYear).length > 0;
+        
+        // Define elective slots
+        const electiveSlots = {
+            'TUESDAY': ['17:10 - 17:30', '17:30 - 18:30'],
+            'THURSDAY': ['17:10 - 17:30', '17:30 - 18:30']
+        };
+        
+        function isElectiveSlot(day, slot) {
+            return electiveSlots[day] && electiveSlots[day].includes(slot);
+        }
         
         const allTimeSlots = [
             '09:00 - 10:00',
@@ -629,7 +676,9 @@
                                                             const slot = isBreak ? slotData.slot : slotData;
                                                             const label = isBreak ? slotData.label : slot;
                                                         %>
-                                                            <th class="<%= isBreak ? 'break-slot' : '' %>"><%= label %></th>
+                                                            <th class="<%= isBreak ? 'break-slot' : '' %>">
+                                                                <%= label %>
+                                                            </th>
                                                         <% }); %>
                                                     </tr>
                                                 </thead>
@@ -650,54 +699,70 @@
                                                                     slot: slot
                                                                 });
                                                             } else if (!processedSlots.has(slotIndex)) {
-                                                                const entry = data.entries.find(t => 
-                                                                    t.day === day && t.timeSlot === slot
-                                                                );
-                                                                
-                                                                if (entry) {
-                                                                    // Check for continuous slots with same course
-                                                                    let colspan = 1;
-                                                                    const baseCourse = entry.course.split(' (')[0]; // Remove (1/2) part
-                                                                    
-                                                                    for (let i = slotIndex + 1; i < allTimeSlots.length; i++) {
-                                                                        const nextSlotData = allTimeSlots[i];
-                                                                        const nextIsBreak = typeof nextSlotData === 'object' && nextSlotData.isBreak;
-                                                                        
-                                                                        if (nextIsBreak) break; // Stop at breaks
-                                                                        
-                                                                        const nextSlot = nextIsBreak ? nextSlotData.slot : nextSlotData;
-                                                                        const nextEntry = data.entries.find(t => 
-                                                                            t.day === day && t.timeSlot === nextSlot
-                                                                        );
-                                                                        
-                                                                        if (nextEntry) {
-                                                                            const nextBaseCourse = nextEntry.course.split(' (')[0];
-                                                                            if (nextBaseCourse === baseCourse && 
-                                                                                nextEntry.faculty === entry.faculty &&
-                                                                                nextEntry.room === entry.room) {
-                                                                                colspan++;
-                                                                                processedSlots.add(i);
-                                                                            } else {
-                                                                                break;
-                                                                            }
-                                                                        } else {
-                                                                            break;
-                                                                        }
-                                                                    }
-                                                                    
+                                                                // Check if this is an elective slot for this day
+                                                                if (isElectiveSlot(day, slot)) {
                                                                     rowData.push({
-                                                                        isBreak: false,
-                                                                        colspan: colspan,
-                                                                        entry: entry,
-                                                                        baseCourse: baseCourse
+                                                                        isElective: true,
+                                                                        colspan: 1,
+                                                                        slot: slot
                                                                     });
                                                                     processedSlots.add(slotIndex);
                                                                 } else {
-                                                                    rowData.push({
-                                                                        isBreak: false,
-                                                                        colspan: 1,
-                                                                        entry: null
-                                                                    });
+                                                                    const entry = data.entries.find(t => 
+                                                                        t.day === day && t.timeSlot === slot
+                                                                    );
+                                                                    
+                                                                    if (entry) {
+                                                                        // Check for continuous slots with same course
+                                                                        let colspan = 1;
+                                                                        const baseCourse = entry.course.split(' (')[0]; // Remove (1/2) part
+                                                                        
+                                                                        for (let i = slotIndex + 1; i < allTimeSlots.length; i++) {
+                                                                            const nextSlotData = allTimeSlots[i];
+                                                                            const nextIsBreak = typeof nextSlotData === 'object' && nextSlotData.isBreak;
+                                                                            
+                                                                            if (nextIsBreak) break; // Stop at breaks
+                                                                            
+                                                                            const nextSlot = nextIsBreak ? nextSlotData.slot : nextSlotData;
+                                                                            
+                                                                            // Stop at elective slots
+                                                                            if (isElectiveSlot(day, nextSlot)) break;
+                                                                            
+                                                                            const nextEntry = data.entries.find(t => 
+                                                                                t.day === day && t.timeSlot === nextSlot
+                                                                            );
+                                                                            
+                                                                            if (nextEntry) {
+                                                                                const nextBaseCourse = nextEntry.course.split(' (')[0];
+                                                                                if (nextBaseCourse === baseCourse && 
+                                                                                    nextEntry.faculty === entry.faculty &&
+                                                                                    nextEntry.room === entry.room) {
+                                                                                    colspan++;
+                                                                                    processedSlots.add(i);
+                                                                                } else {
+                                                                                    break;
+                                                                                }
+                                                                            } else {
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        rowData.push({
+                                                                            isBreak: false,
+                                                                            isElective: false,
+                                                                            colspan: colspan,
+                                                                            entry: entry,
+                                                                            baseCourse: baseCourse
+                                                                        });
+                                                                        processedSlots.add(slotIndex);
+                                                                    } else {
+                                                                        rowData.push({
+                                                                            isBreak: false,
+                                                                            isElective: false,
+                                                                            colspan: 1,
+                                                                            entry: null
+                                                                        });
+                                                                    }
                                                                 }
                                                             }
                                                         });
@@ -707,6 +772,10 @@
                                                             <% rowData.forEach(cell => { %>
                                                                 <% if (cell.isBreak) { %>
                                                                     <td class="break-time" colspan="<%= cell.colspan %>">🍽️</td>
+                                                                <% } else if (cell.isElective) { %>
+                                                                    <td class="elective-slot" colspan="<%= cell.colspan %>">
+                                                                        📖 ELECTIVE
+                                                                    </td>
                                                                 <% } else if (cell.entry) { 
                                                                     const typeStr = (cell.entry.type || '').toLowerCase();
                                                                     let className = '';
@@ -748,8 +817,6 @@
             <% }); %>
         <% } %>
     </div>
-
-
 
     <script>
         function showYear(yearId) {
