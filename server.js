@@ -6,6 +6,10 @@ const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
 
+// Import timetable and exam scheduling modules
+const { generateTimetableWithSemesterSplit, timeSlots, days } = require('./config/timetableGenerator');
+const { generateExamSchedule } = require('./config/examScheduler');
+
 const app = express();
 const PORT = 3000;
 
@@ -32,7 +36,7 @@ const courseSchema = new mongoose.Schema({
   type: String,
   branch: String,
   year: Number,
-  section: { type: String, default: '' }, // Section: A, B, or empty for single section
+  section: { type: String, default: '' },
   credits: { type: Number, default: 3 },
   semesterHalf: { type: String, default: '0' }
 });
@@ -71,7 +75,7 @@ const examSchema = new mongoose.Schema({
   courseName: String,
   credits: Number,
   branch: String,
-  year: Number,  // NEW: Added year field
+  year: Number,
   students: mongoose.Schema.Types.Mixed,
   invigilators: [String],
   rooms: [String],
@@ -87,7 +91,7 @@ const examCourseSchema = new mongoose.Schema({
   name: String,
   credits: String,
   branch: String,
-  year: Number,  // NEW: Added year field
+  year: Number,
   students: String
 });
 
@@ -97,6 +101,7 @@ const invigilatorSchema = new mongoose.Schema({
   availability: [String]
 });
 
+// Models
 const Course = mongoose.model('Course', courseSchema);
 const Faculty = mongoose.model('Faculty', facultySchema);
 const Room = mongoose.model('Room', roomSchema);
@@ -108,115 +113,16 @@ const ExamCourse = mongoose.model('ExamCourse', examCourseSchema);
 // File Upload Setup
 const upload = multer({ dest: 'uploads/' });
 
-// Time Slots - excluding breaks
-const timeSlots = [
-  '09:00 - 10:00',
-  '10:00 - 10:30',
-  '10:45 - 11:00',
-  '11:00 - 12:00',
-  '12:00 - 12:15',
-  '12:15 - 12:30',
-  '12:30 - 13:15',
-  '14:00 - 14:30',
-  '14:30 - 15:30',
-  '15:30 - 15:40',
-  '15:40 - 16:00',
-  '16:00 - 16:30',
-  '16:30 - 17:10',
-  '17:10 - 17:30',
-  '17:30 - 18:30'
-];
+// ==================== ROUTES ====================
 
-const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
-
-// Helper function to calculate duration of a time slot in minutes
-function getSlotDuration(slot) {
-  const [start, end] = slot.split(' - ');
-  const [startHour, startMin] = start.split(':').map(Number);
-  const [endHour, endMin] = end.split(':').map(Number);
-  
-  const startMinutes = startHour * 60 + startMin;
-  const endMinutes = endHour * 60 + endMin;
-  
-  return endMinutes - startMinutes;
-}
-
-// Define continuous time blocks (avoiding breaks)
-function getContinuousTimeBlocks() {
-  return [
-    {
-      name: 'morning',
-      slots: [
-        '09:00 - 10:00',
-        '10:00 - 10:30'
-      ]
-    },
-    {
-      name: 'late-morning',
-      slots: [
-        '10:45 - 11:00',
-        '11:00 - 12:00',
-        '12:00 - 12:15',
-        '12:15 - 12:30',
-        '12:30 - 13:15'
-      ]
-    },
-    {
-      name: 'afternoon',
-      slots: [
-        '14:00 - 14:30',
-        '14:30 - 15:30',
-        '15:30 - 15:40',
-        '15:40 - 16:00',
-        '16:00 - 16:30',
-        '16:30 - 17:10',
-        '17:10 - 17:30',
-        '17:30 - 18:30'
-      ]
-    }
-  ];
-}
-
-// Find consecutive slots within continuous blocks that match target duration
-function findSlotsForDuration(targetMinutes) {
-  const blocks = getContinuousTimeBlocks();
-  const validCombinations = [];
-  
-  blocks.forEach(block => {
-    for (let startIdx = 0; startIdx < block.slots.length; startIdx++) {
-      let totalMinutes = 0;
-      const selectedSlots = [];
-      
-      for (let i = startIdx; i < block.slots.length; i++) {
-        const slot = block.slots[i];
-        const duration = getSlotDuration(slot);
-        selectedSlots.push(slot);
-        totalMinutes += duration;
-        
-        if (Math.abs(totalMinutes - targetMinutes) <= 5) {
-          validCombinations.push({
-            slots: [...selectedSlots],
-            totalMinutes: totalMinutes,
-            block: block.name
-          });
-          break;
-        }
-        
-        if (totalMinutes > targetMinutes + 5) {
-          break;
-        }
-      }
-    }
-  });
-  
-  return validCombinations;
-}
-
-// Routes
+// Home Route
 app.get('/', (req, res) => {
   res.render('index');
 });
 
+// ==================== TIMETABLE ROUTES ====================
+
+// Upload Courses
 app.post('/upload/courses', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
@@ -244,6 +150,7 @@ app.post('/upload/courses', upload.single('file'), async (req, res) => {
     });
 });
 
+// Upload Faculty
 app.post('/upload/faculty', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
@@ -257,6 +164,7 @@ app.post('/upload/faculty', upload.single('file'), async (req, res) => {
     });
 });
 
+// Upload Rooms
 app.post('/upload/rooms', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
@@ -270,6 +178,7 @@ app.post('/upload/rooms', upload.single('file'), async (req, res) => {
     });
 });
 
+// Generate Timetable
 app.post('/generate', async (req, res) => {
   try {
     const courses = await Course.find();
@@ -280,6 +189,7 @@ app.post('/generate', async (req, res) => {
       return res.json({ error: 'Please upload all required data first' });
     }
 
+    // Use the imported function from timetableGenerator module
     const timetables = generateTimetableWithSemesterSplit(courses, faculty, rooms);
     
     await Timetable.deleteMany({});
@@ -296,6 +206,7 @@ app.post('/generate', async (req, res) => {
   }
 });
 
+// View Timetable
 app.get('/view', async (req, res) => {
   try {
     const timetable = await Timetable.find().sort({ branch: 1, year: 1, section: 1, semesterHalf: 1, day: 1 });
@@ -341,6 +252,7 @@ app.get('/view', async (req, res) => {
   }
 });
 
+// View Faculty Timetable
 app.get('/view-faculty', async (req, res) => {
   try {
     const timetable = await Timetable.find().sort({ faculty: 1, semesterHalf: 1, day: 1 });
@@ -380,6 +292,7 @@ app.get('/view-faculty', async (req, res) => {
   }
 });
 
+// Download Timetable CSV
 app.get('/download', async (req, res) => {
   const timetable = await Timetable.find().sort({ branch: 1, year: 1, section: 1, semesterHalf: 1, day: 1 });
   
@@ -393,6 +306,7 @@ app.get('/download', async (req, res) => {
   res.send(csvContent);
 });
 
+// Download Faculty Timetable CSV
 app.get('/download-faculty', async (req, res) => {
   const timetable = await Timetable.find().sort({ faculty: 1, semesterHalf: 1, day: 1 });
   
@@ -433,11 +347,14 @@ app.get('/download-faculty', async (req, res) => {
   res.send(csvContent);
 });
 
-// Exam Scheduling Routes
+// ==================== EXAM SCHEDULING ROUTES ====================
+
+// Exam Upload Page
 app.get('/exam', (req, res) => {
   res.render('exam-upload');
 });
 
+// Upload Exam Courses
 app.post('/upload/exam-courses', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
@@ -451,6 +368,7 @@ app.post('/upload/exam-courses', upload.single('file'), async (req, res) => {
     });
 });
 
+// Upload Invigilators
 app.post('/upload/invigilators', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
@@ -464,6 +382,7 @@ app.post('/upload/invigilators', upload.single('file'), async (req, res) => {
     });
 });
 
+// Upload Exam Rooms
 app.post('/upload/exam-rooms', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
@@ -477,6 +396,7 @@ app.post('/upload/exam-rooms', upload.single('file'), async (req, res) => {
     });
 });
 
+// Generate Exam Schedule
 app.post('/generate-exam', async (req, res) => {
   try {
     const examCourses = await ExamCourse.find();
@@ -487,6 +407,7 @@ app.post('/generate-exam', async (req, res) => {
       return res.json({ error: 'Please upload all required data first' });
     }
 
+    // Use the imported function from examScheduler module
     const examSchedule = generateExamSchedule(examCourses, invigilators, rooms);
     
     await ExamSchedule.deleteMany({});
@@ -498,6 +419,7 @@ app.post('/generate-exam', async (req, res) => {
   }
 });
 
+// View Exam Schedule
 app.get('/view-exam', async (req, res) => {
   try {
     const examSchedule = await ExamSchedule.find().sort({ branch: 1, year: 1, date: 1 });
@@ -523,7 +445,7 @@ app.get('/view-exam', async (req, res) => {
   }
 });
 
-// Updated download-exam route
+// Download Exam Schedule CSV
 app.get('/download-exam', async (req, res) => {
   const examSchedule = await ExamSchedule.find().sort({ branch: 1, year: 1, date: 1 });
   
@@ -544,612 +466,7 @@ app.get('/download-exam', async (req, res) => {
   res.send(csvContent);
 });
 
-
-// ============= FIXED SEMESTER SPLIT LOGIC WITH CSV NORMALIZATION =============
-function generateTimetableWithSemesterSplit(courses, faculty, rooms) {
-  const allTimetables = [];
-  
-  console.log('\n=== Analyzing Course Data ===');
-  console.log(`Total courses loaded: ${courses.length}`);
-  
-  // Normalize all course data (CRITICAL for CSV parsing)
-  courses.forEach(c => {
-    // Normalize semesterHalf
-    if (c.semesterHalf !== undefined && c.semesterHalf !== null) {
-      c.semesterHalf = String(c.semesterHalf).trim();
-    } else {
-      c.semesterHalf = '0';
-    }
-    
-    // Normalize credits
-    if (typeof c.credits === 'string') {
-      c.credits = parseFloat(c.credits) || 3;
-    } else if (typeof c.credits !== 'number') {
-      c.credits = 3;
-    }
-    
-    // Normalize other fields
-    c.code = (c.code || '').trim();
-    c.name = (c.name || '').trim();
-    c.faculty = (c.faculty || '').trim();
-    c.type = (c.type || 'Lecture').trim();
-    c.branch = (c.branch || '').trim();
-    c.year = parseInt(c.year) || 1;
-    c.section = c.section ? String(c.section).trim().toUpperCase() : '';
-  });
-  
-  // Show sample data for debugging
-  const sampleCourse = courses[0];
-  if (sampleCourse) {
-    console.log('Sample normalized course:', {
-      code: sampleCourse.code,
-      semesterHalf: `"${sampleCourse.semesterHalf}"`,
-      credits: sampleCourse.credits,
-      type: sampleCourse.type
-    });
-  }
-  
-  // Count courses by semesterHalf value
-  const semHalfCounts = {};
-  courses.forEach(c => {
-    const key = c.semesterHalf;
-    semHalfCounts[key] = (semHalfCounts[key] || 0) + 1;
-  });
-  console.log('Courses by semesterHalf:', semHalfCounts);
-  
-  // First Half: semesterHalf = '1' OR (semesterHalf = '0' AND credits >= 3)
-  const firstHalfCourses = courses.filter(c => {
-    const semHalf = c.semesterHalf;
-    const credits = c.credits;
-    
-    if (semHalf === '1') return true;
-    if (semHalf === '0' && credits >= 3) return true;
-    return false;
-  });
-
-  // Second Half: semesterHalf = '2' OR semesterHalf = '0'
-  // All '0' courses continue to second half, plus new '2' courses
-  const secondHalfCourses = courses.filter(c => {
-    const semHalf = c.semesterHalf;
-    
-    if (semHalf === '2') return true;  // New post-mid courses
-    if (semHalf === '0') return true;  // Courses running throughout semester
-    return false;
-  });
-  
-  console.log('\n=== Course Distribution ===');
-  console.log(`First Half courses: ${firstHalfCourses.length}`);
-  console.log(`Second Half courses: ${secondHalfCourses.length}`);
-  console.log(`Total scheduled: ${firstHalfCourses.length + secondHalfCourses.length}`);
-  
-  // Show breakdown by branch for verification
-  const firstByBranch = {};
-  const secondByBranch = {};
-  
-  firstHalfCourses.forEach(c => {
-    const key = `${c.branch}-Y${c.year}`;
-    firstByBranch[key] = (firstByBranch[key] || 0) + 1;
-  });
-  
-  secondHalfCourses.forEach(c => {
-    const key = `${c.branch}-Y${c.year}`;
-    secondByBranch[key] = (secondByBranch[key] || 0) + 1;
-  });
-  
-  console.log('\nFirst Half by branch-year:', firstByBranch);
-  console.log('Second Half by branch-year:', secondByBranch);
-  
-  console.log(`\n=== First Half Details (showing first 10) ===`);
-  firstHalfCourses.slice(0, 10).forEach(c => {
-    console.log(`  ${c.code} | ${c.branch} Y${c.year}${c.section ? '-'+c.section : ''} | Credits:${c.credits} | SemHalf:"${c.semesterHalf}" | ${c.type}`);
-  });
-  
-  console.log(`\n=== Second Half Details (showing first 10) ===`);
-  secondHalfCourses.slice(0, 10).forEach(c => {
-    console.log(`  ${c.code} | ${c.branch} Y${c.year}${c.section ? '-'+c.section : ''} | Credits:${c.credits} | SemHalf:"${c.semesterHalf}" | ${c.type}`);
-  });
-  
-  // Generate timetables
-  console.log('\n=== Starting First Half Generation ===');
-  const firstHalfTimetable = generateTimetableForHalf(firstHalfCourses, faculty, rooms, 'First_Half');
-  allTimetables.push(...firstHalfTimetable);
-  
-  console.log('\n=== Starting Second Half Generation ===');
-  const secondHalfTimetable = generateTimetableForHalf(secondHalfCourses, faculty, rooms, 'Second_Half');
-  allTimetables.push(...secondHalfTimetable);
-  
-  console.log(`\n=== Generation Summary ===`);
-  console.log(`First Half entries created: ${firstHalfTimetable.length}`);
-  console.log(`Second Half entries created: ${secondHalfTimetable.length}`);
-  console.log(`Total timetable entries: ${allTimetables.length}`);
-  
-  return allTimetables;
-}
-
-// ============= IMPROVED LAB SCHEDULING =============
-function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
-  const timetable = [];
-  const facultySchedule = {};
-  const roomSchedule = {};
-  const branchYearSectionSchedule = {};
-  const courseSchedule = {};
-
-  const coursesByBranchYearSection = {};
-  courses.forEach(course => {
-    if (!course.branch || !course.year) {
-      return;
-    }
-    
-    const section = course.section || '';
-    const key = section ? `${course.branch}-${course.year}-${section}` : `${course.branch}-${course.year}`;
-    if (!coursesByBranchYearSection[key]) {
-      coursesByBranchYearSection[key] = [];
-    }
-    coursesByBranchYearSection[key].push(course);
-  });
-
-  console.log(`\n=== Generating ${semesterHalf} Timetable ===`);
-  console.log('Found combinations:', Object.keys(coursesByBranchYearSection));
-  
-  const sortedKeys = Object.keys(coursesByBranchYearSection).sort();
-  
-  sortedKeys.forEach(branchYearSectionKey => {
-    const parts = branchYearSectionKey.split('-');
-    const branch = parts[0];
-    const year = parts[1];
-    const section = parts[2] || '';
-    
-    const branchCourses = coursesByBranchYearSection[branchYearSectionKey];
-    
-    const displayKey = section ? `${branch} Year ${year} Section ${section}` : `${branch} Year ${year}`;
-    console.log(`\nProcessing ${displayKey}: ${branchCourses.length} courses`);
-
-    branchYearSectionSchedule[branchYearSectionKey] = {};
-    days.forEach(day => {
-      branchYearSectionSchedule[branchYearSectionKey][day] = {};
-    });
-
-    const labCourses = branchCourses.filter(c => (c.type || '').toLowerCase().includes('lab'));
-    const regularCourses = branchCourses.filter(c => !(c.type || '').toLowerCase().includes('lab'));
-
-    console.log(`  Lab courses: ${labCourses.length}, Regular courses: ${regularCourses.length}`);
-
-    const lecture90Combinations = findSlotsForDuration(90);
-    const tutorial60Combinations = findSlotsForDuration(60);
-    const lab120Combinations = findSlotsForDuration(120);
-
-    console.log(`  Slot combinations available:`);
-    console.log(`    - 90min lectures: ${lecture90Combinations.length} options`);
-    console.log(`    - 60min tutorials: ${tutorial60Combinations.length} options`);
-    console.log(`    - 120min labs: ${lab120Combinations.length} options`);
-
-    // ===== PROCESS REGULAR COURSES =====
-    regularCourses.forEach(course => {
-      const courseKey = `${branchYearSectionKey}-${course.code}-${semesterHalf}`;
-      courseSchedule[courseKey] = [];
-      
-      const sessionsNeeded = [
-        { type: 'Lecture', duration: 90, sessionNum: 1, combinations: lecture90Combinations },
-        { type: 'Lecture', duration: 90, sessionNum: 2, combinations: lecture90Combinations },
-        { type: 'Tutorial', duration: 60, sessionNum: 1, combinations: tutorial60Combinations }
-      ];
-
-      sessionsNeeded.forEach(session => {
-        let assigned = false;
-        let attempts = 0;
-        const maxAttempts = days.length * session.combinations.length * 3;
-
-        while (!assigned && attempts < maxAttempts) {
-          const availableDays = days.filter(d => !courseSchedule[courseKey].includes(d));
-          
-          if (availableDays.length === 0) {
-            break;
-          }
-
-          const day = availableDays[Math.floor(Math.random() * availableDays.length)];
-          const combination = session.combinations[Math.floor(Math.random() * session.combinations.length)];
-          
-          if (!combination) {
-            attempts++;
-            continue;
-          }
-
-          const slotsToUse = combination.slots;
-          let selectedRoom;
-          const classrooms = rooms.filter(r => (r.type || '').toLowerCase().includes('class'));
-          selectedRoom = classrooms.length > 0 ? 
-            classrooms[Math.floor(Math.random() * classrooms.length)] : rooms[0];
-
-          let hasConflict = false;
-          
-          for (const slot of slotsToUse) {
-            const facultyKey = `${course.faculty}-${day}-${slot}-${semesterHalf}`;
-            const roomKey = `${selectedRoom.number}-${day}-${slot}-${semesterHalf}`;
-            
-            if (facultySchedule[facultyKey] || roomSchedule[roomKey] || 
-                branchYearSectionSchedule[branchYearSectionKey][day][slot]) {
-              hasConflict = true;
-              break;
-            }
-          }
-
-          if (!hasConflict) {
-            slotsToUse.forEach((slot, idx) => {
-              const sessionLabel = session.type === 'Tutorial' ? 
-                'Tutorial' : `Lecture ${session.sessionNum}`;
-              
-              let courseName = `${course.name} - ${sessionLabel}`;
-              
-              if (slotsToUse.length > 1) {
-                courseName += ` (${idx + 1}/${slotsToUse.length})`;
-              }
-
-              timetable.push({
-                day,
-                timeSlot: slot,
-                course: courseName,
-                faculty: course.faculty,
-                room: selectedRoom.number,
-                type: session.type,
-                branch: course.branch,
-                year: parseInt(course.year),
-                section: section,
-                semesterHalf: semesterHalf
-              });
-
-              facultySchedule[`${course.faculty}-${day}-${slot}-${semesterHalf}`] = true;
-              roomSchedule[`${selectedRoom.number}-${day}-${slot}-${semesterHalf}`] = true;
-              branchYearSectionSchedule[branchYearSectionKey][day][slot] = true;
-            });
-
-            courseSchedule[courseKey].push(day);
-            assigned = true;
-            console.log(`  ✓ ${course.code} ${session.type} ${session.sessionNum || ''} - ${day} ${slotsToUse[0]}`);
-          }
-
-          attempts++;
-        }
-
-        if (!assigned) {
-          console.log(`  ✗ Could not assign ${course.code} ${session.type} ${session.sessionNum || ''}`);
-        }
-      });
-    });
-
-    // ===== IMPROVED LAB SCHEDULING =====
-    console.log(`\n  === Starting Lab Allocation for ${displayKey} ===`);
-    
-    labCourses.forEach(course => {
-      let assigned = false;
-      let attempts = 0;
-      const maxAttempts = days.length * 50; // Increased attempts
-
-      console.log(`  Scheduling lab: ${course.code} - ${course.name}`);
-
-      while (!assigned && attempts < maxAttempts) {
-        const day = days[Math.floor(Math.random() * days.length)];
-        
-        let slotsToUse = [];
-        let slotSource = 'none';
-        let totalMinutes = 0;
-        
-        // Strategy 1: Try 120-minute combinations
-        if (lab120Combinations.length > 0 && attempts < maxAttempts * 0.3) {
-          const combination = lab120Combinations[Math.floor(Math.random() * lab120Combinations.length)];
-          if (combination) {
-            slotsToUse = combination.slots;
-            totalMinutes = combination.totalMinutes;
-            slotSource = '120min-combination';
-          }
-        }
-        
-        // Strategy 2: Try any 2-3 consecutive slots from continuous blocks
-        if (slotsToUse.length === 0) {
-          const blocks = getContinuousTimeBlocks();
-          const selectedBlock = blocks[Math.floor(Math.random() * blocks.length)];
-          
-          if (selectedBlock.slots.length >= 2) {
-            const startIdx = Math.floor(Math.random() * (selectedBlock.slots.length - 1));
-            const numSlots = Math.min(3, selectedBlock.slots.length - startIdx);
-            slotsToUse = selectedBlock.slots.slice(startIdx, startIdx + numSlots);
-            
-            // Calculate total minutes
-            totalMinutes = 0;
-            for (const slot of slotsToUse) {
-              totalMinutes += getSlotDuration(slot);
-            }
-            slotSource = `${numSlots}-consecutive-slots`;
-          }
-        }
-        
-        // Strategy 3: Just take ANY 2 consecutive available slots
-        if (slotsToUse.length === 0 && attempts > maxAttempts * 0.5) {
-          const timeSlots = [
-            '09:00 - 10:00', '10:00 - 10:30',
-            '10:45 - 11:00', '11:00 - 12:00', '12:00 - 12:15', '12:15 - 12:30', '12:30 - 13:15',
-            '14:00 - 14:30', '14:30 - 15:30', '15:30 - 15:40', '15:40 - 16:00', 
-            '16:00 - 16:30', '16:30 - 17:10', '17:10 - 17:30', '17:30 - 18:30'
-          ];
-          const startIdx = Math.floor(Math.random() * (timeSlots.length - 1));
-          slotsToUse = [timeSlots[startIdx], timeSlots[startIdx + 1]];
-          
-          // Calculate total minutes
-          totalMinutes = 0;
-          for (const slot of slotsToUse) {
-            totalMinutes += getSlotDuration(slot);
-          }
-          slotSource = 'any-2-slots';
-        }
-        
-        if (slotsToUse.length === 0) {
-          attempts++;
-          continue;
-        }
-
-        // Select lab room
-        let selectedRoom;
-        const labRooms = rooms.filter(r => (r.type || '').toLowerCase().includes('lab'));
-        if (labRooms.length > 0) {
-          selectedRoom = labRooms[Math.floor(Math.random() * labRooms.length)];
-        } else {
-          selectedRoom = rooms[Math.floor(Math.random() * rooms.length)];
-        }
-
-        // Check conflicts
-        let hasConflict = false;
-        for (const slot of slotsToUse) {
-          const facultyKey = `${course.faculty}-${day}-${slot}-${semesterHalf}`;
-          const roomKey = `${selectedRoom.number}-${day}-${slot}-${semesterHalf}`;
-          
-          if (facultySchedule[facultyKey] || roomSchedule[roomKey] || 
-              branchYearSectionSchedule[branchYearSectionKey][day][slot]) {
-            hasConflict = true;
-            break;
-          }
-        }
-
-        if (!hasConflict) {
-          // Assign lab slots
-          slotsToUse.forEach((slot, idx) => {
-            timetable.push({
-              day,
-              timeSlot: slot,
-              course: `${course.name} (${idx + 1}/${slotsToUse.length})`,
-              faculty: course.faculty,
-              room: selectedRoom.number,
-              type: 'Lab',
-              branch: course.branch,
-              year: parseInt(course.year),
-              section: section,
-              semesterHalf: semesterHalf
-            });
-
-            facultySchedule[`${course.faculty}-${day}-${slot}-${semesterHalf}`] = true;
-            roomSchedule[`${selectedRoom.number}-${day}-${slot}-${semesterHalf}`] = true;
-            branchYearSectionSchedule[branchYearSectionKey][day][slot] = true;
-          });
-
-          assigned = true;
-          console.log(`  ✓ ${course.code} Lab - ${day} ${slotsToUse[0]} (${slotsToUse.length} slots = ${totalMinutes}min, method: ${slotSource})`);
-        }
-
-        attempts++;
-      }
-
-      if (!assigned) {
-        console.log(`  ✗✗✗ FAILED to assign ${course.code} Lab after ${attempts} attempts`);
-        console.log(`      Faculty: ${course.faculty}, Room type needed: Lab`);
-        console.log(`      Reason: Could not find consecutive free slots`);
-      }
-    });
-  });
-
-  return timetable;
-}
-
-
-
-function generateExamSchedule(examCourses, invigilators, rooms) {
-  const examSchedule = [];
-  const invigilatorSchedule = {};
-  const roomSchedule = {};
-  const branchYearDateUsage = {};
-  
-  // Extended exam dates for all branches
-  const examDates = [
-    { date: '20-Nov-2025', day: 'Wednesday' },
-    { date: '21-Nov-2025', day: 'Thursday' },
-    { date: '22-Nov-2025', day: 'Friday' },
-    { date: '23-Nov-2025', day: 'Saturday' },
-    { date: '25-Nov-2025', day: 'Monday' },
-    { date: '26-Nov-2025', day: 'Tuesday' },
-    { date: '27-Nov-2025', day: 'Wednesday' },
-    { date: '28-Nov-2025', day: 'Thursday' },
-    { date: '29-Nov-2025', day: 'Friday' },
-    { date: '30-Nov-2025', day: 'Saturday' },
-    { date: '02-Dec-2025', day: 'Monday' },
-    { date: '03-Dec-2025', day: 'Tuesday' },
-    { date: '04-Dec-2025', day: 'Wednesday' },
-    { date: '05-Dec-2025', day: 'Thursday' },
-    { date: '06-Dec-2025', day: 'Friday' }
-  ];
-  
-  const examSlots = [
-    { slot: 'FN: 09:00 AM - 12:00 PM', priority: 1 },
-    { slot: 'AN: 02:00 PM - 05:00 PM', priority: 2 }
-  ];
-
-  // Group courses by branch and year
-  const coursesByBranchYear = {};
-  examCourses.forEach(course => {
-    const branch = course.branch || 'Unknown';
-    const year = parseInt(course.year) || 1;
-    const key = `${branch}-Year${year}`;
-    
-    if (!coursesByBranchYear[key]) {
-      coursesByBranchYear[key] = {
-        branch: branch,
-        year: year,
-        courses: []
-      };
-    }
-    coursesByBranchYear[key].courses.push(course);
-  });
-
-  console.log('\n=== Scheduling Exams for All Branches & Years ===');
-  console.log(`Total branch-year combinations: ${Object.keys(coursesByBranchYear).length}`);
-  
-  // Sort keys for consistent ordering
-  const sortedKeys = Object.keys(coursesByBranchYear).sort((a, b) => {
-    const [branchA, yearA] = a.split('-Year');
-    const [branchB, yearB] = b.split('-Year');
-    if (branchA !== branchB) return branchA.localeCompare(branchB);
-    return parseInt(yearA) - parseInt(yearB);
-  });
-  
-  sortedKeys.forEach(key => {
-    const data = coursesByBranchYear[key];
-    const { branch, year, courses } = data;
-    
-    console.log(`\n=== ${branch} - Year ${year} ===`);
-    console.log(`Total courses: ${courses.length}`);
-
-    // Sort courses by credits (higher credits first)
-    courses.sort((a, b) => {
-      const creditsA = parseInt(a.credits) || 0;
-      const creditsB = parseInt(b.credits) || 0;
-      if (creditsB !== creditsA) return creditsB - creditsA;
-      
-      // Then by student count
-      const studentsA = parseInt(a.students) || 30;
-      const studentsB = parseInt(b.students) || 30;
-      return studentsB - studentsA;
-    });
-
-    let dateIndex = 0;
-
-    courses.forEach(course => {
-      let assigned = false;
-      let attempts = 0;
-      const maxAttempts = examDates.length * examSlots.length * 2;
-
-      let studentsCount = parseInt(course.students) || 30;
-      
-      // Calculate rooms needed (30 students per room)
-      const roomsNeeded = Math.ceil(studentsCount / 30);
-      const invigilatorsNeeded = roomsNeeded;
-
-      while (!assigned && attempts < maxAttempts) {
-        const currentDateIndex = (dateIndex + Math.floor(attempts / examSlots.length)) % examDates.length;
-        const slotIndex = attempts % examSlots.length;
-        
-        const examDate = examDates[currentDateIndex];
-        const examSlot = examSlots[slotIndex];
-        
-        const scheduleKey = `${examDate.date}-${examSlot.slot}`;
-        const branchYearDateKey = `${branch}-${year}-${examDate.date}`;
-
-        // Check if this branch-year already has exam on this date
-        if (branchYearDateUsage[branchYearDateKey]) {
-          attempts++;
-          continue;
-        }
-
-        // Find available rooms
-        const availableRooms = [];
-        for (let room of rooms) {
-          const roomKey = `${room.number}-${scheduleKey}`;
-          if (!roomSchedule[roomKey]) {
-            availableRooms.push(room);
-            if (availableRooms.length >= roomsNeeded) break;
-          }
-        }
-
-        // Find available invigilators
-        const availableInvigilators = [];
-        for (let inv of invigilators) {
-          const invKey = `${inv.name}-${scheduleKey}`;
-          if (!invigilatorSchedule[invKey]) {
-            availableInvigilators.push(inv);
-            if (availableInvigilators.length >= invigilatorsNeeded) break;
-          }
-        }
-
-        // Check if we have enough resources
-        if (availableRooms.length >= roomsNeeded && 
-            availableInvigilators.length >= invigilatorsNeeded) {
-          
-          // Assign rooms
-          const assignedRooms = availableRooms.slice(0, roomsNeeded);
-          assignedRooms.forEach(room => {
-            const roomKey = `${room.number}-${scheduleKey}`;
-            roomSchedule[roomKey] = true;
-          });
-
-          // Assign invigilators
-          const assignedInvigilators = availableInvigilators.slice(0, invigilatorsNeeded);
-          assignedInvigilators.forEach(inv => {
-            const invKey = `${inv.name}-${scheduleKey}`;
-            invigilatorSchedule[invKey] = true;
-          });
-
-          // Mark this date as used for this branch-year
-          branchYearDateUsage[branchYearDateKey] = true;
-
-          // Create room-invigilator pairs
-          const roomInvigilatorPairs = [];
-          assignedRooms.forEach((room, idx) => {
-            const inv = assignedInvigilators[idx];
-            roomInvigilatorPairs.push({
-              room: room.number,
-              invigilator: inv?.name || 'TBD'
-            });
-          });
-
-          // Add to schedule
-          examSchedule.push({
-            date: examDate.date,
-            day: examDate.day,
-            timeSlot: examSlot.slot,
-            courseCode: course.code,
-            courseName: course.name,
-            credits: parseInt(course.credits) || 0,
-            branch: branch,
-            year: year,
-            students: studentsCount,
-            invigilators: assignedInvigilators.map(inv => inv.name),
-            rooms: assignedRooms.map(room => room.number),
-            roomInvigilatorPairs: roomInvigilatorPairs
-          });
-
-          console.log(`  ✓ ${course.code} (${course.credits} cr) - ${examDate.date} ${examSlot.slot}`);
-          assigned = true;
-          dateIndex = (dateIndex + 1) % examDates.length;
-        }
-
-        attempts++;
-      }
-
-      if (!assigned) {
-        console.log(`  ✗ FAILED: ${course.code} - ${course.name} (Not enough resources)`);
-      }
-    });
-  });
-
-  console.log(`\n=== Exam Scheduling Summary ===`);
-  console.log(`Total exams scheduled: ${examSchedule.length}`);
-  
-  // Summary by branch and year
-  sortedKeys.forEach(key => {
-    const data = coursesByBranchYear[key];
-    const branchYearExams = examSchedule.filter(e => 
-      e.branch === data.branch && e.year === data.year
-    );
-    console.log(`  ${data.branch} Year ${data.year}: ${branchYearExams.length} exams`);
-  });
-  
-  return examSchedule;
-}
+// ==================== START SERVER ====================
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
