@@ -1,5 +1,7 @@
 // TIMETABLE GENERATOR MODULE
 // Features: Duration-based slot allocation, Semester split, Conflict prevention, Elective slot reservation
+// NEW: Support for combined sections (A+B) in large rooms (240 seater)
+// PRIORITY: Schedule ALL labs (120min) FIRST, then schedule lectures and tutorials
 
 // Available time slots (excluding break times)
 const timeSlots = [
@@ -37,7 +39,6 @@ function isElectiveSlot(day, slot) {
 
 /**
  * Calculate duration of a time slot in minutes
- * Example: "09:00 - 10:00" → 60 minutes
  */
 function getSlotDuration(slot) {
   const [start, end] = slot.split(' - ');
@@ -51,9 +52,7 @@ function getSlotDuration(slot) {
 }
 
 /**
- * Define continuous time blocks (no breaks in between)
- * Ensures multi-slot courses aren't interrupted by break times
- * Note: Elective slots (17:10-18:30) are included here but checked separately per day
+ * Define continuous time blocks
  */
 function getContinuousTimeBlocks() {
   return [
@@ -92,27 +91,22 @@ function getContinuousTimeBlocks() {
 
 /**
  * Find consecutive slots that match target duration (±5 min tolerance)
- * Returns all possible combinations within continuous blocks
- * Example: 90 min → ["09:00-10:00", "10:00-10:30"] or ["11:00-12:00", "12:00-12:15", "12:15-12:30"]
  */
 function findSlotsForDuration(targetMinutes) {
   const blocks = getContinuousTimeBlocks();
   const validCombinations = [];
   
   blocks.forEach(block => {
-    // Try every starting position in block
     for (let startIdx = 0; startIdx < block.slots.length; startIdx++) {
       let totalMinutes = 0;
       const selectedSlots = [];
       
-      // Add consecutive slots from this position
       for (let i = startIdx; i < block.slots.length; i++) {
         const slot = block.slots[i];
         const duration = getSlotDuration(slot);
         selectedSlots.push(slot);
         totalMinutes += duration;
         
-        // Found valid combination (within tolerance)
         if (Math.abs(totalMinutes - targetMinutes) <= 5) {
           validCombinations.push({
             slots: [...selectedSlots],
@@ -122,7 +116,6 @@ function findSlotsForDuration(targetMinutes) {
           break;
         }
         
-        // Exceeded target, try next start position
         if (totalMinutes > targetMinutes + 5) {
           break;
         }
@@ -134,14 +127,31 @@ function findSlotsForDuration(targetMinutes) {
 }
 
 /**
+ * Find all possible 120-minute slot combinations for labs across all days
+ */
+function findAllLab120CombinationsAcrossDays() {
+  const lab120Base = findSlotsForDuration(120);
+  const allCombinations = [];
+  
+  days.forEach(day => {
+    lab120Base.forEach(combo => {
+      const hasElectiveConflict = combo.slots.some(slot => isElectiveSlot(day, slot));
+      if (!hasElectiveConflict) {
+        allCombinations.push({
+          day: day,
+          slots: combo.slots,
+          totalMinutes: combo.totalMinutes,
+          block: combo.block
+        });
+      }
+    });
+  });
+  
+  return allCombinations;
+}
+
+/**
  * Main function: Generate timetable with semester split
- * 
- * Semester Logic:
- * - First Half: semesterHalf='1' OR (semesterHalf='0' AND credits>=3)
- * - Second Half: semesterHalf='2' OR semesterHalf='0'
- * 
- * This ensures high-credit courses run in first half, then get replaced by lighter courses
- * while low-credit courses continue throughout
  */
 function generateTimetableWithSemesterSplit(courses, faculty, rooms) {
   const allTimetables = [];
@@ -149,23 +159,20 @@ function generateTimetableWithSemesterSplit(courses, faculty, rooms) {
   console.log('\n=== Analyzing Course Data ===');
   console.log(`Total courses loaded: ${courses.length}`);
   
-  // Normalize course data (critical for CSV parsing)
+  // Normalize course data
   courses.forEach(c => {
-    // Convert semesterHalf to string: '0' (full), '1' (first), '2' (second)
     if (c.semesterHalf !== undefined && c.semesterHalf !== null) {
       c.semesterHalf = String(c.semesterHalf).trim();
     } else {
       c.semesterHalf = '0';
     }
     
-    // Convert credits to number
     if (typeof c.credits === 'string') {
       c.credits = parseFloat(c.credits) || 3;
     } else if (typeof c.credits !== 'number') {
       c.credits = 3;
     }
     
-    // Trim all text fields
     c.code = (c.code || '').trim();
     c.name = (c.name || '').trim();
     c.faculty = (c.faculty || '').trim();
@@ -173,28 +180,17 @@ function generateTimetableWithSemesterSplit(courses, faculty, rooms) {
     c.branch = (c.branch || '').trim();
     c.year = parseInt(c.year) || 1;
     c.section = c.section ? String(c.section).trim().toUpperCase() : '';
+    
+    // NEW: Handle combinedSections field
+    // Format: "A,B" or "A+B" or "" (empty means separate sections)
+    if (c.combinedSections !== undefined && c.combinedSections !== null) {
+      c.combinedSections = String(c.combinedSections).trim();
+    } else {
+      c.combinedSections = '';
+    }
   });
-  
-  // Debug logging
-  const sampleCourse = courses[0];
-  if (sampleCourse) {
-    console.log('Sample normalized course:', {
-      code: sampleCourse.code,
-      semesterHalf: `"${sampleCourse.semesterHalf}"`,
-      credits: sampleCourse.credits,
-      type: sampleCourse.type
-    });
-  }
-  
-  const semHalfCounts = {};
-  courses.forEach(c => {
-    const key = c.semesterHalf;
-    semHalfCounts[key] = (semHalfCounts[key] || 0) + 1;
-  });
-  console.log('Courses by semesterHalf:', semHalfCounts);
   
   // Filter courses by semester half
-  // First Half: Explicit '1' OR full-semester high-credit (0 AND >=3 credits)
   const firstHalfCourses = courses.filter(c => {
     const semHalf = c.semesterHalf;
     const credits = c.credits;
@@ -204,12 +200,11 @@ function generateTimetableWithSemesterSplit(courses, faculty, rooms) {
     return false;
   });
 
-  // Second Half: Explicit '2' OR full-semester courses '0'
   const secondHalfCourses = courses.filter(c => {
     const semHalf = c.semesterHalf;
     
-    if (semHalf === '2') return true;  // New post-mid courses
-    if (semHalf === '0') return true;  // Continuing courses
+    if (semHalf === '2') return true;
+    if (semHalf === '0') return true;
     return false;
   });
   
@@ -235,34 +230,41 @@ function generateTimetableWithSemesterSplit(courses, faculty, rooms) {
 }
 
 /**
- * Generate timetable for one semester half
- * 
- * Process:
- * 1. Group courses by branch-year-section
- * 2. Separate labs from regular courses
- * 3. Schedule regular courses: 2 lectures (90min) + 1 tutorial (60min) on different days
- * 4. Schedule labs: 120min blocks using progressive fallback strategies
- * 
- * Conflict Prevention: Uses hashtables to track faculty/room/student availability
- * Elective Slot Protection: Skips Tuesday/Thursday 17:10-18:30 slots
+ * Group courses and identify combined section courses
+ * Returns: {
+ *   coursesByBranchYearSection: {...},
+ *   combinedCourses: [...],
+ *   combinedCoursesMap: {...}
+ * }
  */
-function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
-  const timetable = [];
-  
-  // Conflict tracking: key format is "identifier-day-slot-semester"
-  const facultySchedule = {};
-  const roomSchedule = {};
-  const branchYearSectionSchedule = {};
-  const courseSchedule = {};  // Tracks which days each course uses
-
-  // Group courses by branch-year-section (each group = one class of students)
+function groupAndIdentifyCombinedCourses(courses) {
   const coursesByBranchYearSection = {};
+  const combinedCourses = [];
+  const combinedCoursesMap = {}; // key: branch-year-code, value: course object
+  
   courses.forEach(course => {
     if (!course.branch || !course.year) {
       return;
     }
     
     const section = course.section || '';
+    
+    // Check if this course has combined sections
+    if (course.combinedSections && course.combinedSections.length > 0) {
+      const combinedKey = `${course.branch}-${course.year}-${course.code}`;
+      
+      // Only add once per unique course (avoid duplicates from section A and B entries)
+      if (!combinedCoursesMap[combinedKey]) {
+        combinedCoursesMap[combinedKey] = course;
+        combinedCourses.push(course);
+        console.log(`  🔗 Found combined section course: ${course.code} - ${course.name}`);
+        console.log(`     Sections: ${course.combinedSections}`);
+      }
+      // Don't add to section-specific groups
+      return;
+    }
+    
+    // Regular section-specific courses
     const key = section ? `${course.branch}-${course.year}-${section}` : `${course.branch}-${course.year}`;
     
     if (!coursesByBranchYearSection[key]) {
@@ -270,12 +272,226 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
     }
     coursesByBranchYearSection[key].push(course);
   });
+  
+  return {
+    coursesByBranchYearSection,
+    combinedCourses,
+    combinedCoursesMap
+  };
+}
+
+/**
+ * Generate timetable for one semester half
+ * 
+ * PRIORITY ORDER:
+ * 1. Schedule COMBINED SECTION courses first (A+B together in 240-seater)
+ * 2. Schedule ALL labs (120 minutes each)
+ * 3. Schedule regular lectures and tutorials
+ */
+function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
+  const timetable = [];
+  
+  // Conflict tracking
+  const facultySchedule = {};
+  const roomSchedule = {};
+  const branchYearSectionSchedule = {};
+  const courseSchedule = {};
+
+  // Group courses and identify combined section courses
+  const {
+    coursesByBranchYearSection,
+    combinedCourses,
+    combinedCoursesMap
+  } = groupAndIdentifyCombinedCourses(courses);
 
   console.log(`\n=== Generating ${semesterHalf} Timetable ===`);
-  console.log('Found combinations:', Object.keys(coursesByBranchYearSection));
+  console.log(`Total combined section courses: ${combinedCourses.length}`);
+  console.log('Section-specific combinations:', Object.keys(coursesByBranchYearSection));
   
   const sortedKeys = Object.keys(coursesByBranchYearSection).sort();
   
+  // Initialize schedules for all sections
+  sortedKeys.forEach(branchYearSectionKey => {
+    branchYearSectionSchedule[branchYearSectionKey] = {};
+    days.forEach(day => {
+      branchYearSectionSchedule[branchYearSectionKey][day] = {};
+      
+      // Mark elective slots as occupied
+      if (electiveSlots[day]) {
+        electiveSlots[day].forEach(slot => {
+          branchYearSectionSchedule[branchYearSectionKey][day][slot] = 'ELECTIVE_RESERVED';
+        });
+      }
+    });
+  });
+  
+  // Pre-compute slot combinations
+  const allLab120Slots = findAllLab120CombinationsAcrossDays();
+  const lecture90Combinations = findSlotsForDuration(90);
+  const tutorial60Combinations = findSlotsForDuration(60);
+  
+  console.log(`\nAvailable slot combinations:`);
+  console.log(`  - 120min lab slots: ${allLab120Slots.length}`);
+  console.log(`  - 90min lecture combinations: ${lecture90Combinations.length}`);
+  console.log(`  - 60min tutorial combinations: ${tutorial60Combinations.length}`);
+
+  // ===================================================================
+  // PHASE 0: SCHEDULE COMBINED SECTION COURSES (HIGHEST PRIORITY)
+  // ===================================================================
+  if (combinedCourses.length > 0) {
+    console.log(`\n  ╔══════════════════════════════════════════════════════════╗`);
+    console.log(`  ║ PHASE 0: COMBINED SECTIONS (A+B) - HIGHEST PRIORITY     ║`);
+    console.log(`  ╚══════════════════════════════════════════════════════════╝`);
+    
+    combinedCourses.forEach((course, idx) => {
+      console.log(`\n  [Combined ${idx + 1}/${combinedCourses.length}] ${course.code} - ${course.name}`);
+      console.log(`     Sections: ${course.combinedSections}`);
+      console.log(`     Faculty: ${course.faculty}`);
+      
+      // Parse which sections are combined (e.g., "A,B" or "A+B")
+      const sectionsArray = course.combinedSections
+        .replace(/\+/g, ',')
+        .split(',')
+        .map(s => s.trim().toUpperCase())
+        .filter(s => s.length > 0);
+      
+      // Find 240-seater room
+      let largeRoom = rooms.find(r => {
+        const capacity = parseInt(r.capacity) || 0;
+        return capacity >= 200 && (r.type || '').toLowerCase().includes('class');
+      });
+      
+      if (!largeRoom) {
+        console.log(`     ⚠️  WARNING: No 240-seater room found, using largest available`);
+        largeRoom = rooms.reduce((max, r) => {
+          const capacity = parseInt(r.capacity) || 0;
+          const maxCapacity = parseInt(max.capacity) || 0;
+          return capacity > maxCapacity ? r : max;
+        }, rooms[0]);
+      }
+      
+      console.log(`     Room: ${largeRoom.number} (Capacity: ${largeRoom.capacity})`);
+      
+      // Schedule sessions: 2 lectures + 1 tutorial
+      const sessionsNeeded = [
+        { type: 'Lecture', duration: 90, sessionNum: 1, combinations: lecture90Combinations },
+        { type: 'Lecture', duration: 90, sessionNum: 2, combinations: lecture90Combinations },
+        { type: 'Tutorial', duration: 60, sessionNum: 1, combinations: tutorial60Combinations }
+      ];
+      
+      const courseKey = `${course.branch}-${course.year}-${course.code}-combined-${semesterHalf}`;
+      courseSchedule[courseKey] = [];
+      
+      sessionsNeeded.forEach(session => {
+        let assigned = false;
+        let attempts = 0;
+        const maxAttempts = days.length * session.combinations.length * 5;
+        
+        while (!assigned && attempts < maxAttempts) {
+          // Pick a day not already used for this course
+          const availableDays = days.filter(d => !courseSchedule[courseKey].includes(d));
+          if (availableDays.length === 0) break;
+          
+          const day = availableDays[Math.floor(Math.random() * availableDays.length)];
+          const combination = session.combinations[Math.floor(Math.random() * session.combinations.length)];
+          
+          if (!combination) {
+            attempts++;
+            continue;
+          }
+          
+          const slotsToUse = combination.slots;
+          
+          // Check elective conflicts
+          const hasElectiveConflict = slotsToUse.some(slot => isElectiveSlot(day, slot));
+          if (hasElectiveConflict) {
+            attempts++;
+            continue;
+          }
+          
+          // Check conflicts for ALL sections involved
+          let hasConflict = false;
+          
+          for (const slot of slotsToUse) {
+            const facultyKey = `${course.faculty}-${day}-${slot}-${semesterHalf}`;
+            const roomKey = `${largeRoom.number}-${day}-${slot}-${semesterHalf}`;
+            
+            if (facultySchedule[facultyKey] || roomSchedule[roomKey]) {
+              hasConflict = true;
+              break;
+            }
+            
+            // Check if any of the combined sections have conflicts
+            for (const section of sectionsArray) {
+              const sectionKey = `${course.branch}-${course.year}-${section}`;
+              if (branchYearSectionSchedule[sectionKey] && 
+                  branchYearSectionSchedule[sectionKey][day] && 
+                  branchYearSectionSchedule[sectionKey][day][slot]) {
+                hasConflict = true;
+                break;
+              }
+            }
+            
+            if (hasConflict) break;
+          }
+          
+          if (!hasConflict) {
+            // Book for ALL sections
+            slotsToUse.forEach((slot, slotIdx) => {
+              const sessionLabel = session.type === 'Tutorial' ? 
+                'Tutorial' : `Lecture ${session.sessionNum}`;
+              
+              let courseName = `${course.name} - ${sessionLabel}`;
+              if (slotsToUse.length > 1) {
+                courseName += ` (${slotIdx + 1}/${slotsToUse.length})`;
+              }
+              
+              // Create entries for each section
+              sectionsArray.forEach(section => {
+                timetable.push({
+                  day,
+                  timeSlot: slot,
+                  course: courseName + ` [Combined: ${course.combinedSections}]`,
+                  faculty: course.faculty,
+                  room: largeRoom.number,
+                  type: session.type,
+                  branch: course.branch,
+                  year: parseInt(course.year),
+                  section: section,
+                  semesterHalf: semesterHalf,
+                  isCombined: true
+                });
+                
+                // Mark section as occupied
+                const sectionKey = `${course.branch}-${course.year}-${section}`;
+                if (branchYearSectionSchedule[sectionKey]) {
+                  branchYearSectionSchedule[sectionKey][day][slot] = true;
+                }
+              });
+              
+              // Mark faculty and room as occupied
+              facultySchedule[`${course.faculty}-${day}-${slot}-${semesterHalf}`] = true;
+              roomSchedule[`${largeRoom.number}-${day}-${slot}-${semesterHalf}`] = true;
+            });
+            
+            courseSchedule[courseKey].push(day);
+            assigned = true;
+            console.log(`     ✅ ${session.type} ${session.sessionNum || ''}: ${day} ${slotsToUse[0]}`);
+          }
+          
+          attempts++;
+        }
+        
+        if (!assigned) {
+          console.log(`     ❌ Failed: ${session.type} ${session.sessionNum || ''}`);
+        }
+      });
+    });
+  }
+
+  // ===================================================================
+  // PROCESS EACH SECTION INDIVIDUALLY
+  // ===================================================================
   sortedKeys.forEach(branchYearSectionKey => {
     const parts = branchYearSectionKey.split('-');
     const branch = parts[0];
@@ -285,31 +501,102 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
     const branchCourses = coursesByBranchYearSection[branchYearSectionKey];
     
     const displayKey = section ? `${branch} Year ${year} Section ${section}` : `${branch} Year ${year}`;
-    console.log(`\nProcessing ${displayKey}: ${branchCourses.length} courses`);
-
-    branchYearSectionSchedule[branchYearSectionKey] = {};
-    days.forEach(day => {
-      branchYearSectionSchedule[branchYearSectionKey][day] = {};
-      
-      // Mark elective slots as occupied so courses won't be scheduled there
-      if (electiveSlots[day]) {
-        electiveSlots[day].forEach(slot => {
-          branchYearSectionSchedule[branchYearSectionKey][day][slot] = 'ELECTIVE_RESERVED';
-        });
-      }
-    });
+    console.log(`\n╔════════════════════════════════════════════════════════════╗`);
+    console.log(`║ Processing ${displayKey}: ${branchCourses.length} courses`);
+    console.log(`╚════════════════════════════════════════════════════════════╝`);
 
     const labCourses = branchCourses.filter(c => (c.type || '').toLowerCase().includes('lab'));
     const regularCourses = branchCourses.filter(c => !(c.type || '').toLowerCase().includes('lab'));
 
-    console.log(`  Lab courses: ${labCourses.length}, Regular courses: ${regularCourses.length}`);
+    console.log(`\n  📊 Course breakdown:`);
+    console.log(`     - Lab courses: ${labCourses.length}`);
+    console.log(`     - Regular courses: ${regularCourses.length}`);
 
-    const lecture90Combinations = findSlotsForDuration(90);
-    const tutorial60Combinations = findSlotsForDuration(60);
-    const lab120Combinations = findSlotsForDuration(120);
+    // ===================================================================
+    // PHASE 1: SCHEDULE LABS
+    // ===================================================================
+    console.log(`\n  ╔══════════════════════════════════════════════════════════╗`);
+    console.log(`  ║ PHASE 1: SCHEDULING LABS (120 minutes each)             ║`);
+    console.log(`  ╚══════════════════════════════════════════════════════════╝`);
+    
+    labCourses.forEach((course, labIndex) => {
+      let assigned = false;
+      let attempts = 0;
+      const maxAttempts = allLab120Slots.length * 3;
 
-    // Process regular courses
-    regularCourses.forEach(course => {
+      console.log(`\n  [Lab ${labIndex + 1}/${labCourses.length}] ${course.code} - ${course.name}`);
+
+      while (!assigned && attempts < maxAttempts) {
+        const slotCombo = allLab120Slots[Math.floor(Math.random() * allLab120Slots.length)];
+        const day = slotCombo.day;
+        const slotsToUse = slotCombo.slots;
+        const totalMinutes = slotCombo.totalMinutes;
+
+        let selectedRoom;
+        const labRooms = rooms.filter(r => (r.type || '').toLowerCase().includes('lab'));
+        if (labRooms.length > 0) {
+          selectedRoom = labRooms[Math.floor(Math.random() * labRooms.length)];
+        } else {
+          selectedRoom = rooms[Math.floor(Math.random() * rooms.length)];
+        }
+
+        let hasConflict = false;
+        for (const slot of slotsToUse) {
+          const facultyKey = `${course.faculty}-${day}-${slot}-${semesterHalf}`;
+          const roomKey = `${selectedRoom.number}-${day}-${slot}-${semesterHalf}`;
+          
+          if (facultySchedule[facultyKey] || roomSchedule[roomKey] || 
+              branchYearSectionSchedule[branchYearSectionKey][day][slot]) {
+            hasConflict = true;
+            break;
+          }
+        }
+
+        if (!hasConflict) {
+          slotsToUse.forEach((slot, idx) => {
+            timetable.push({
+              day,
+              timeSlot: slot,
+              course: `${course.name} (${idx + 1}/${slotsToUse.length})`,
+              faculty: course.faculty,
+              room: selectedRoom.number,
+              type: 'Lab',
+              branch: course.branch,
+              year: parseInt(course.year),
+              section: section,
+              semesterHalf: semesterHalf,
+              isCombined: false
+            });
+
+            facultySchedule[`${course.faculty}-${day}-${slot}-${semesterHalf}`] = true;
+            roomSchedule[`${selectedRoom.number}-${day}-${slot}-${semesterHalf}`] = true;
+            branchYearSectionSchedule[branchYearSectionKey][day][slot] = true;
+          });
+
+          assigned = true;
+          console.log(`     ✅ SUCCESS: ${day} ${slotsToUse[0]} → ${slotsToUse[slotsToUse.length-1]}`);
+          console.log(`        Duration: ${totalMinutes} minutes (${slotsToUse.length} slots)`);
+          console.log(`        Room: ${selectedRoom.number}`);
+        }
+
+        attempts++;
+      }
+
+      if (!assigned) {
+        console.log(`     ❌ FAILED: Could not find valid 120min slot after ${attempts} attempts`);
+      }
+    });
+
+    // ===================================================================
+    // PHASE 2: SCHEDULE LECTURES AND TUTORIALS
+    // ===================================================================
+    console.log(`\n  ╔══════════════════════════════════════════════════════════╗`);
+    console.log(`  ║ PHASE 2: SCHEDULING LECTURES & TUTORIALS                ║`);
+    console.log(`  ╚══════════════════════════════════════════════════════════╝`);
+
+    regularCourses.forEach((course, courseIndex) => {
+      console.log(`\n  [Course ${courseIndex + 1}/${regularCourses.length}] ${course.code} - ${course.name}`);
+      
       const courseKey = `${branchYearSectionKey}-${course.code}-${semesterHalf}`;
       courseSchedule[courseKey] = [];
       
@@ -341,7 +628,6 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
 
           const slotsToUse = combination.slots;
           
-          // Check if any slot conflicts with elective slots FOR THIS SPECIFIC DAY
           const hasElectiveConflict = slotsToUse.some(slot => isElectiveSlot(day, slot));
           if (hasElectiveConflict) {
             attempts++;
@@ -387,7 +673,8 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
                 branch: course.branch,
                 year: parseInt(course.year),
                 section: section,
-                semesterHalf: semesterHalf
+                semesterHalf: semesterHalf,
+                isCombined: false
               });
 
               facultySchedule[`${course.faculty}-${day}-${slot}-${semesterHalf}`] = true;
@@ -397,144 +684,16 @@ function generateTimetableForHalf(courses, faculty, rooms, semesterHalf) {
 
             courseSchedule[courseKey].push(day);
             assigned = true;
-            console.log(`  ✓ ${course.code} ${session.type} ${session.sessionNum || ''} - ${day} ${slotsToUse[0]}`);
+            console.log(`     ✅ ${session.type} ${session.sessionNum || ''}: ${day} ${slotsToUse[0]}`);
           }
 
           attempts++;
         }
 
         if (!assigned) {
-          console.log(`  ✗ Could not assign ${course.code} ${session.type} ${session.sessionNum || ''}`);
+          console.log(`     ❌ Failed: ${session.type} ${session.sessionNum || ''}`);
         }
       });
-    });
-
-    // Process lab courses
-    console.log(`\n  === Starting Lab Allocation for ${displayKey} ===`);
-    
-    labCourses.forEach(course => {
-      let assigned = false;
-      let attempts = 0;
-      const maxAttempts = days.length * 50;
-
-      console.log(`  Scheduling lab: ${course.code} - ${course.name}`);
-
-      while (!assigned && attempts < maxAttempts) {
-        const day = days[Math.floor(Math.random() * days.length)];
-        
-        let slotsToUse = [];
-        let slotSource = 'none';
-        let totalMinutes = 0;
-        
-        // Strategy 1: Try 120-minute combinations
-        if (lab120Combinations.length > 0 && attempts < maxAttempts * 0.3) {
-          const combination = lab120Combinations[Math.floor(Math.random() * lab120Combinations.length)];
-          if (combination) {
-            slotsToUse = combination.slots;
-            totalMinutes = combination.totalMinutes;
-            slotSource = '120min-combination';
-          }
-        }
-        
-        // Strategy 2: Try any 2-3 consecutive slots from continuous blocks
-        if (slotsToUse.length === 0) {
-          const blocks = getContinuousTimeBlocks();
-          const selectedBlock = blocks[Math.floor(Math.random() * blocks.length)];
-          
-          if (selectedBlock.slots.length >= 2) {
-            const startIdx = Math.floor(Math.random() * (selectedBlock.slots.length - 1));
-            const numSlots = Math.min(3, selectedBlock.slots.length - startIdx);
-            slotsToUse = selectedBlock.slots.slice(startIdx, startIdx + numSlots);
-            
-            totalMinutes = 0;
-            for (const slot of slotsToUse) {
-              totalMinutes += getSlotDuration(slot);
-            }
-            slotSource = `${numSlots}-consecutive-slots`;
-          }
-        }
-        
-        // Strategy 3: Just take ANY 2 consecutive available slots (excluding elective slots for Tue/Thu)
-        if (slotsToUse.length === 0 && attempts > maxAttempts * 0.5) {
-          // Filter out elective slots only for Tuesday and Thursday
-          const availableSlots = timeSlots.filter(slot => !isElectiveSlot(day, slot));
-          
-          if (availableSlots.length >= 2) {
-            const startIdx = Math.floor(Math.random() * (availableSlots.length - 1));
-            slotsToUse = [availableSlots[startIdx], availableSlots[startIdx + 1]];
-            
-            totalMinutes = 0;
-            for (const slot of slotsToUse) {
-              totalMinutes += getSlotDuration(slot);
-            }
-            slotSource = 'any-2-slots';
-          }
-        }
-        
-        if (slotsToUse.length === 0) {
-          attempts++;
-          continue;
-        }
-        
-        // Double-check no elective slots FOR THIS SPECIFIC DAY
-        const hasElectiveConflict = slotsToUse.some(slot => isElectiveSlot(day, slot));
-        if (hasElectiveConflict) {
-          attempts++;
-          continue;
-        }
-
-        // Select lab room
-        let selectedRoom;
-        const labRooms = rooms.filter(r => (r.type || '').toLowerCase().includes('lab'));
-        if (labRooms.length > 0) {
-          selectedRoom = labRooms[Math.floor(Math.random() * labRooms.length)];
-        } else {
-          selectedRoom = rooms[Math.floor(Math.random() * rooms.length)];
-        }
-
-        // Check conflicts
-        let hasConflict = false;
-        for (const slot of slotsToUse) {
-          const facultyKey = `${course.faculty}-${day}-${slot}-${semesterHalf}`;
-          const roomKey = `${selectedRoom.number}-${day}-${slot}-${semesterHalf}`;
-          
-          if (facultySchedule[facultyKey] || roomSchedule[roomKey] || 
-              branchYearSectionSchedule[branchYearSectionKey][day][slot]) {
-            hasConflict = true;
-            break;
-          }
-        }
-
-        if (!hasConflict) {
-          slotsToUse.forEach((slot, idx) => {
-            timetable.push({
-              day,
-              timeSlot: slot,
-              course: `${course.name} (${idx + 1}/${slotsToUse.length})`,
-              faculty: course.faculty,
-              room: selectedRoom.number,
-              type: 'Lab',
-              branch: course.branch,
-              year: parseInt(course.year),
-              section: section,
-              semesterHalf: semesterHalf
-            });
-
-            facultySchedule[`${course.faculty}-${day}-${slot}-${semesterHalf}`] = true;
-            roomSchedule[`${selectedRoom.number}-${day}-${slot}-${semesterHalf}`] = true;
-            branchYearSectionSchedule[branchYearSectionKey][day][slot] = true;
-          });
-
-          assigned = true;
-          console.log(`  ✓ ${course.code} Lab - ${day} ${slotsToUse[0]} (${slotsToUse.length} slots = ${totalMinutes}min, method: ${slotSource})`);
-        }
-
-        attempts++;
-      }
-
-      if (!assigned) {
-        console.log(`  ✗✗✗ FAILED to assign ${course.code} Lab after ${attempts} attempts`);
-      }
     });
   });
 
@@ -546,5 +705,6 @@ module.exports = {
   timeSlots,
   days,
   electiveSlots,
-  isElectiveSlot
+  isElectiveSlot,
+  findAllLab120CombinationsAcrossDays
 };

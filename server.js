@@ -38,7 +38,8 @@ const courseSchema = new mongoose.Schema({
   year: Number,
   section: { type: String, default: '' },
   credits: { type: Number, default: 3 },
-  semesterHalf: { type: String, default: '0' }
+  semesterHalf: { type: String, default: '0' },
+  combinedSections: { type: String, default: '' }
 });
 
 const facultySchema = new mongoose.Schema({
@@ -64,6 +65,7 @@ const timetableSchema = new mongoose.Schema({
   year: Number,
   section: String,
   semesterHalf: String,
+  isCombined: { type: Boolean, default: false },
   generatedAt: { type: Date, default: Date.now }
 });
 
@@ -92,13 +94,14 @@ const examCourseSchema = new mongoose.Schema({
   credits: String,
   branch: String,
   year: Number,
-  students: String
+  students: String,
+  type: String,
+  faculty: String
 });
 
+// Simplified Invigilator Schema - just name
 const invigilatorSchema = new mongoose.Schema({
-  name: String,
-  department: String,
-  availability: [String]
+  name: String
 });
 
 // Models
@@ -138,7 +141,8 @@ app.post('/upload/courses', upload.single('file'), async (req, res) => {
         year: parseInt(data.year) || 1,
         section: data.section ? data.section.trim().toUpperCase() : '',
         credits: parseFloat(data.credits) || 3,
-        semesterHalf: data.semesterHalf ? data.semesterHalf.trim() : '0'
+        semesterHalf: data.semesterHalf ? data.semesterHalf.trim() : '0',
+        combinedSections: data.combinedSections ? data.combinedSections.trim() : ''
       };
       results.push(cleanData);
     })
@@ -146,7 +150,14 @@ app.post('/upload/courses', upload.single('file'), async (req, res) => {
       await Course.deleteMany({});
       await Course.insertMany(results);
       fs.unlinkSync(req.file.path);
-      res.json({ message: 'Courses uploaded successfully', count: results.length });
+      
+      const combinedCount = results.filter(c => c.combinedSections && c.combinedSections.length > 0).length;
+      
+      res.json({ 
+        message: 'Courses uploaded successfully', 
+        count: results.length,
+        combinedSectionCourses: combinedCount
+      });
     });
 });
 
@@ -169,12 +180,26 @@ app.post('/upload/rooms', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
     .pipe(csv())
-    .on('data', (data) => results.push(data))
+    .on('data', (data) => {
+      const cleanData = {
+        number: data.number ? data.number.trim() : '',
+        capacity: parseInt(data.capacity) || 0,
+        type: data.type ? data.type.trim() : 'Classroom'
+      };
+      results.push(cleanData);
+    })
     .on('end', async () => {
       await Room.deleteMany({});
       await Room.insertMany(results);
       fs.unlinkSync(req.file.path);
-      res.json({ message: 'Rooms uploaded successfully', count: results.length });
+      
+      const largeRooms = results.filter(r => parseInt(r.capacity) >= 200).length;
+      
+      res.json({ 
+        message: 'Rooms uploaded successfully', 
+        count: results.length,
+        largeRooms: largeRooms
+      });
     });
 });
 
@@ -189,19 +214,29 @@ app.post('/generate', async (req, res) => {
       return res.json({ error: 'Please upload all required data first' });
     }
 
-    // Use the imported function from timetableGenerator module
+    const combinedCourses = courses.filter(c => c.combinedSections && c.combinedSections.length > 0);
+    const largeRooms = rooms.filter(r => parseInt(r.capacity) >= 200);
+    
+    if (combinedCourses.length > 0 && largeRooms.length === 0) {
+      console.warn('⚠️ Warning: Combined section courses found but no 240-seater rooms available!');
+    }
+
     const timetables = generateTimetableWithSemesterSplit(courses, faculty, rooms);
     
     await Timetable.deleteMany({});
     await Timetable.insertMany(timetables);
 
+    const combinedEntries = timetables.filter(t => t.isCombined).length;
+
     res.json({ 
       message: 'Timetables generated successfully', 
       entries: timetables.length,
       firstHalf: timetables.filter(t => t.semesterHalf === 'First_Half').length,
-      secondHalf: timetables.filter(t => t.semesterHalf === 'Second_Half').length
+      secondHalf: timetables.filter(t => t.semesterHalf === 'Second_Half').length,
+      combinedSectionEntries: combinedEntries
     });
   } catch (error) {
+    console.error('Error generating timetable:', error);
     res.json({ error: error.message });
   }
 });
@@ -296,9 +331,10 @@ app.get('/view-faculty', async (req, res) => {
 app.get('/download', async (req, res) => {
   const timetable = await Timetable.find().sort({ branch: 1, year: 1, section: 1, semesterHalf: 1, day: 1 });
   
-  let csvContent = 'Branch,Section,Year,Semester Half,Day,Time Slot,Course,Faculty,Room,Type\n';
+  let csvContent = 'Branch,Section,Year,Semester Half,Day,Time Slot,Course,Faculty,Room,Type,Combined\n';
   timetable.forEach(entry => {
-    csvContent += `${entry.branch},${entry.section || ''},${entry.year},${entry.semesterHalf},${entry.day},${entry.timeSlot},${entry.course},${entry.faculty},${entry.room},${entry.type}\n`;
+    const combined = entry.isCombined ? 'Yes' : 'No';
+    csvContent += `${entry.branch},${entry.section || ''},${entry.year},${entry.semesterHalf},${entry.day},${entry.timeSlot},"${entry.course}",${entry.faculty},${entry.room},${entry.type},${combined}\n`;
   });
 
   res.setHeader('Content-Type', 'text/csv');
@@ -310,7 +346,7 @@ app.get('/download', async (req, res) => {
 app.get('/download-faculty', async (req, res) => {
   const timetable = await Timetable.find().sort({ faculty: 1, semesterHalf: 1, day: 1 });
   
-  let csvContent = 'Faculty,Semester Half,Day,Time Slot,Course,Branch,Year,Room,Type\n';
+  let csvContent = 'Faculty,Semester Half,Day,Time Slot,Course,Branch,Year,Room,Type,Combined\n';
   
   const facultyEntries = [];
   timetable.forEach(entry => {
@@ -327,7 +363,8 @@ app.get('/download-faculty', async (req, res) => {
         branch: entry.branch,
         year: entry.year,
         room: entry.room,
-        type: entry.type
+        type: entry.type,
+        combined: entry.isCombined ? 'Yes' : 'No'
       });
     });
   });
@@ -339,13 +376,14 @@ app.get('/download-faculty', async (req, res) => {
   });
   
   facultyEntries.forEach(entry => {
-    csvContent += `${entry.faculty},${entry.semesterHalf},${entry.day},${entry.timeSlot},${entry.course},${entry.branch},${entry.year},${entry.room},${entry.type}\n`;
+    csvContent += `${entry.faculty},${entry.semesterHalf},${entry.day},${entry.timeSlot},"${entry.course}",${entry.branch},${entry.year},${entry.room},${entry.type},${entry.combined}\n`;
   });
 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=faculty-timetable.csv');
   res.send(csvContent);
 });
+
 
 // ==================== EXAM SCHEDULING ROUTES ====================
 
@@ -359,26 +397,58 @@ app.post('/upload/exam-courses', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
     .pipe(csv())
-    .on('data', (data) => results.push(data))
+    .on('data', (data) => {
+      const cleanData = {
+        code: data.code ? data.code.trim() : '',
+        name: data.name ? data.name.trim() : '',
+        credits: data.credits || 3,
+        branch: data.branch ? data.branch.trim().toUpperCase() : '',
+        year: parseInt(data.year) || 1,
+        students: data.students || '60',
+        type: data.type ? data.type.trim() : 'Theory',
+        faculty: data.faculty ? data.faculty.trim() : 'TBA'
+      };
+      results.push(cleanData);
+    })
     .on('end', async () => {
       await ExamCourse.deleteMany({});
       await ExamCourse.insertMany(results);
       fs.unlinkSync(req.file.path);
-      res.json({ message: 'Exam courses uploaded successfully', count: results.length });
+      
+      const theoryCourses = results.filter(c => 
+        !c.type.toLowerCase().includes('lab')
+      ).length;
+      
+      res.json({ 
+        message: 'Exam courses uploaded successfully', 
+        count: results.length,
+        theoryCourses: theoryCourses
+      });
     });
 });
 
-// Upload Invigilators
+// Upload Invigilators - SIMPLIFIED VERSION (just names)
 app.post('/upload/invigilators', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
     .pipe(csv())
-    .on('data', (data) => results.push(data))
+    .on('data', (data) => {
+      // Support both simple format (just 'name' column) and old format
+      const cleanData = {
+        name: data.name || data.Name || data.NAME || ''
+      };
+      if (cleanData.name.trim()) {
+        results.push(cleanData);
+      }
+    })
     .on('end', async () => {
       await Invigilator.deleteMany({});
       await Invigilator.insertMany(results);
       fs.unlinkSync(req.file.path);
-      res.json({ message: 'Invigilators uploaded successfully', count: results.length });
+      res.json({ 
+        message: 'Invigilators uploaded successfully', 
+        count: results.length 
+      });
     });
 });
 
@@ -387,7 +457,14 @@ app.post('/upload/exam-rooms', upload.single('file'), async (req, res) => {
   const results = [];
   fs.createReadStream(req.file.path)
     .pipe(csv())
-    .on('data', (data) => results.push(data))
+    .on('data', (data) => {
+      const cleanData = {
+        number: data.number ? data.number.trim() : '',
+        capacity: parseInt(data.capacity) || 40,
+        type: data.type ? data.type.trim() : 'Classroom'
+      };
+      results.push(cleanData);
+    })
     .on('end', async () => {
       await Room.deleteMany({});
       await Room.insertMany(results);
@@ -396,9 +473,32 @@ app.post('/upload/exam-rooms', upload.single('file'), async (req, res) => {
     });
 });
 
-// Generate Exam Schedule
+// Generate Exam Schedule with Date Range
 app.post('/generate-exam', async (req, res) => {
   try {
+    const { startDate, endDate, timeSlot1, timeSlot2 } = req.body;
+    
+    console.log('\n=== Exam Schedule Generation Request ===');
+    console.log('Start Date:', startDate);
+    console.log('End Date:', endDate);
+    console.log('Time Slot 1:', timeSlot1);
+    console.log('Time Slot 2:', timeSlot2);
+    
+    if (!startDate || !endDate) {
+      return res.json({ error: 'Start date and end date are required' });
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.json({ error: 'Invalid date format' });
+    }
+    
+    if (start > end) {
+      return res.json({ error: 'Start date must be before or equal to end date' });
+    }
+    
     const examCourses = await ExamCourse.find();
     const invigilators = await Invigilator.find();
     const rooms = await Room.find();
@@ -407,14 +507,32 @@ app.post('/generate-exam', async (req, res) => {
       return res.json({ error: 'Please upload all required data first' });
     }
 
-    // Use the imported function from examScheduler module
-    const examSchedule = generateExamSchedule(examCourses, invigilators, rooms);
+    console.log(`Courses: ${examCourses.length}, Invigilators: ${invigilators.length}, Rooms: ${rooms.length}`);
+
+    // Pass invigilators directly (they're just objects with 'name' property)
+    const examSchedule = generateExamSchedule(
+      examCourses, 
+      invigilators,  // Array of {name: "Dr. X"} objects
+      rooms,
+      startDate,
+      endDate,
+      timeSlot1 || '09:00 - 12:00',
+      timeSlot2 || null
+    );
     
     await ExamSchedule.deleteMany({});
     await ExamSchedule.insertMany(examSchedule);
 
-    res.json({ message: 'Exam schedule generated successfully', entries: examSchedule.length });
+    console.log(`\n✅ Exam schedule generated: ${examSchedule.length} exams`);
+
+    res.json({ 
+      message: `Exam schedule generated successfully for ${startDate} to ${endDate}`, 
+      entries: examSchedule.length,
+      startDate: startDate,
+      endDate: endDate
+    });
   } catch (error) {
+    console.error('Error generating exam schedule:', error);
     res.json({ error: error.message });
   }
 });

@@ -88,6 +88,37 @@
             font-size: 1.3em;
         }
 
+        /* Statistics Panel */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #1e3c72;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
         /* Year Tabs - Main Level */
         .year-tabs {
             display: flex;
@@ -336,7 +367,7 @@
             .container {
                 box-shadow: none;
             }
-            .actions, .year-tabs, .branch-tabs {
+            .actions, .year-tabs, .branch-tabs, .stats-grid {
                 display: none;
             }
             .year-content, .branch-content {
@@ -349,6 +380,14 @@
         }
 
         @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
             th, td {
                 padding: 10px 8px;
                 font-size: 0.85em;
@@ -357,6 +396,10 @@
                 padding: 10px 15px;
                 font-size: 0.9em;
             }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
         }
     </style>
 </head>
@@ -364,7 +407,7 @@
     <div class="container">
         <div class="header">
             <h1>📋 End Semester Examination Schedule</h1>
-            <p>Academic Year 2025 | November - December Session</p>
+            <p>Academic Year 2024-25 | Sundays Excluded</p>
         </div>
         
         <div class="actions">
@@ -380,7 +423,7 @@
             </div>
         <% } else { %>
             <%
-            // Reorganize data by Year -> Branch
+            // Reorganize data by Year → Branch
             const hierarchicalData = {};
             
             Object.keys(groupedByBranch).forEach(branchKey => {
@@ -400,9 +443,52 @@
                 });
             });
             
+            // Sort exams by date within each branch
+            Object.keys(hierarchicalData).forEach(year => {
+                Object.keys(hierarchicalData[year]).forEach(branch => {
+                    hierarchicalData[year][branch].sort((a, b) => {
+                        const dateA = new Date(a.date.split('-').reverse().join('-'));
+                        const dateB = new Date(b.date.split('-').reverse().join('-'));
+                        return dateA - dateB;
+                    });
+                });
+            });
+            
             const years = Object.keys(hierarchicalData).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            // Calculate overall statistics
+            const totalExams = years.reduce((sum, year) => {
+                return sum + Object.values(hierarchicalData[year]).flat().length;
+            }, 0);
+            const allDates = [...new Set(
+                years.flatMap(year => 
+                    Object.values(hierarchicalData[year]).flatMap(exams => 
+                        exams.map(e => e.date)
+                    )
+                )
+            )];
             %>
             
+            <!-- Overall Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value"><%= totalExams %></div>
+                    <div class="stat-label">Total Exams</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value"><%= years.length %></div>
+                    <div class="stat-label">Years</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value"><%= allDates.length %></div>
+                    <div class="stat-label">Exam Days</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">Sundays</div>
+                </div>
+            </div>
+
             <!-- Year Tabs -->
             <div class="year-tabs">
                 <% years.forEach((year, index) => { 
@@ -453,7 +539,8 @@
                                 <div class="branch-subtitle">
                                     📚 Total Exams: <%= exams.length %> | 
                                     🎓 Theory Courses Only | 
-                                    📅 One Exam per Day
+                                    📅 One Exam per Day | 
+                                    🚫 No Sundays
                                 </div>
                             </div>
 
@@ -466,6 +553,7 @@
                                             <th>Time</th>
                                             <th>Course Code</th>
                                             <th>Subject</th>
+                                            <th>Students</th>
                                             <th>Room(s)</th>
                                             <th>Invigilator(s)</th>
                                         </tr>
@@ -482,13 +570,20 @@
                                                 <td>
                                                     <div class="course-name"><%= exam.courseName %></div>
                                                 </td>
+                                                <td style="text-align: center;">
+                                                    <%= exam.students || 'N/A' %>
+                                                </td>
                                                 <td>
                                                     <% if (exam.roomInvigilatorPairs && exam.roomInvigilatorPairs.length > 0) { %>
                                                         <% exam.roomInvigilatorPairs.forEach(pair => { %>
                                                             <div class="room-cell"><%= pair.room %></div>
                                                         <% }); %>
+                                                    <% } else if (exam.rooms && exam.rooms.length > 0) { %>
+                                                        <% exam.rooms.forEach(room => { %>
+                                                            <div class="room-cell"><%= room %></div>
+                                                        <% }); %>
                                                     <% } else { %>
-                                                        <div class="room-cell"><%= exam.rooms.join(', ') %></div>
+                                                        <div class="room-cell">TBA</div>
                                                     <% } %>
                                                 </td>
                                                 <td class="invigilator-cell">
@@ -496,10 +591,12 @@
                                                         <% exam.roomInvigilatorPairs.forEach(pair => { %>
                                                             <div style="margin-bottom: 3px;"><%= pair.invigilator %></div>
                                                         <% }); %>
-                                                    <% } else { %>
+                                                    <% } else if (exam.invigilators && exam.invigilators.length > 0) { %>
                                                         <% exam.invigilators.forEach(inv => { %>
                                                             <div style="margin-bottom: 3px;"><%= inv %></div>
                                                         <% }); %>
+                                                    <% } else { %>
+                                                        <div>TBA</div>
                                                     <% } %>
                                                 </td>
                                             </tr>

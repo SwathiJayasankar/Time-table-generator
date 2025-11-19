@@ -78,6 +78,84 @@
             margin: 5px 0;
         }
 
+        /* Date Range Section */
+        .date-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 2px solid #1e3c72;
+        }
+
+        .date-section h3 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .date-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        .form-group input[type="date"],
+        .form-group input[type="text"] {
+            padding: 12px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #1e3c72;
+            box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
+        }
+
+        .date-info {
+            background: #d1ecf1;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border-left: 4px solid #0c5460;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .date-info p {
+            color: #0c5460;
+            font-size: 0.95em;
+            margin-bottom: 5px;
+        }
+
+        .date-info strong {
+            color: #062a30;
+        }
+
+        .time-slots {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
         .upload-section {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -166,9 +244,16 @@
             transition: all 0.3s;
         }
 
-        .generate-btn:hover {
+        .generate-btn:hover:not(:disabled) {
             transform: translateY(-3px);
             box-shadow: 0 15px 40px rgba(30, 60, 114, 0.6);
+        }
+
+        .generate-btn:disabled {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.6;
         }
 
         .view-btn {
@@ -185,6 +270,7 @@
 
         .view-btn:hover {
             background: #138496;
+            transform: translateY(-2px);
         }
 
         .message {
@@ -207,11 +293,32 @@
             border: 1px solid #f5c6cb;
         }
 
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
         .file-name {
             margin-top: 10px;
             font-size: 0.9em;
             color: #666;
             font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .date-inputs,
+            .time-slots {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
         }
     </style>
 </head>
@@ -227,15 +334,16 @@
         <div class="instructions">
             <h3>📋 CSV Format Instructions:</h3>
             <ul>
-                <li><strong>Exam Courses CSV:</strong> code, name, credits, branch, students, type</li>
-                <li><strong>Invigilators CSV:</strong> name, department, availability</li>
+                <li><strong>Exam Courses CSV:</strong> code, name, credits, branch, year, students, type, faculty</li>
+                <li><strong>Invigilators CSV:</strong> name</li>
                 <li><strong>Exam Rooms CSV:</strong> number, capacity, type</li>
             </ul>
             <p style="margin-top: 10px; color: #d32f2f;"><strong>Important Rules:</strong></p>
             <ul style="margin-top: 5px;">
-                <li>Branch: CSE, DSAI, ECE (only branch-wise, no year)</li>
+                <li>Branch: CSE, DSAI, ECE (branch-wise scheduling)</li>
                 <li>Type: Theory, Lab (Labs will be excluded from exam schedule)</li>
                 <li><strong>1 exam per day per branch</strong></li>
+                <li><strong>Sundays automatically excluded from schedule</strong></li>
                 <li>1 invigilator per room</li>
                 <li>40 students per room</li>
                 <li>Same day/room can be used by different branches</li>
@@ -243,6 +351,41 @@
         </div>
 
         <div id="message" class="message"></div>
+
+        <!-- Date Range Section -->
+        <div class="date-section">
+            <h3>📅 Exam Date Range</h3>
+            
+            <div class="date-inputs">
+                <div class="form-group">
+                    <label for="startDate">Start Date *</label>
+                    <input type="date" id="startDate" name="startDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="endDate">End Date *</label>
+                    <input type="date" id="endDate" name="endDate" required>
+                </div>
+            </div>
+
+            <div class="time-slots">
+                <div class="form-group">
+                    <label for="timeSlot1">Morning Session *</label>
+                    <input type="text" id="timeSlot1" value="09:00 - 12:00" placeholder="e.g., 09:00 - 12:00" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="timeSlot2">Afternoon Session (Optional)</label>
+                    <input type="text" id="timeSlot2" value="14:00 - 17:00" placeholder="e.g., 14:00 - 17:00">
+                </div>
+            </div>
+
+            <div class="date-info" id="dateInfo">
+                <p><strong>📊 Available Exam Days:</strong> <span id="examDays">0</span></p>
+                <p><strong>🚫 Sundays Excluded:</strong> <span id="sundaysExcluded">0</span></p>
+                <p><strong>📝 Note:</strong> One exam per day per branch. Sundays are automatically excluded from scheduling.</p>
+            </div>
+        </div>
 
         <div class="upload-section">
             <div class="upload-card">
@@ -289,7 +432,7 @@
         </div>
 
         <div class="generate-section">
-            <button class="generate-btn" onclick="generateExamSchedule()">
+            <button class="generate-btn" id="generateBtn" onclick="generateExamSchedule()">
                 ⚡ Generate Exam Schedule
             </button>
             <button class="view-btn" onclick="window.location.href='/view-exam'">
@@ -299,6 +442,65 @@
     </div>
 
     <script>
+        // Set minimum date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('startDate').min = today;
+        document.getElementById('endDate').min = today;
+
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const dateInfo = document.getElementById('dateInfo');
+        const examDaysSpan = document.getElementById('examDays');
+        const sundaysExcludedSpan = document.getElementById('sundaysExcluded');
+        const generateBtn = document.getElementById('generateBtn');
+
+        // Calculate exam days excluding Sundays
+        function calculateExamDays() {
+            const start = new Date(startDateInput.value);
+            const end = new Date(endDateInput.value);
+
+            if (!startDateInput.value || !endDateInput.value) {
+                dateInfo.style.display = 'none';
+                return;
+            }
+
+            if (start > end) {
+                showMessage('Start date must be before or equal to end date', 'warning');
+                endDateInput.value = '';
+                dateInfo.style.display = 'none';
+                return;
+            }
+
+            let totalDays = 0;
+            let sundays = 0;
+            const current = new Date(start);
+
+            while (current <= end) {
+                if (current.getDay() === 0) { // Sunday = 0
+                    sundays++;
+                } else {
+                    totalDays++;
+                }
+                current.setDate(current.getDate() + 1);
+            }
+
+            examDaysSpan.textContent = totalDays;
+            sundaysExcludedSpan.textContent = sundays;
+            dateInfo.style.display = 'block';
+
+            if (totalDays < 5) {
+                showMessage(`Only ${totalDays} exam days available. Consider extending the date range.`, 'warning');
+            }
+        }
+
+        // Update end date minimum when start date changes
+        startDateInput.addEventListener('change', () => {
+            endDateInput.min = startDateInput.value;
+            calculateExamDays();
+        });
+
+        endDateInput.addEventListener('change', calculateExamDays);
+
         function showMessage(msg, type) {
             const msgDiv = document.getElementById('message');
             msgDiv.textContent = msg;
@@ -307,6 +509,7 @@
             setTimeout(() => msgDiv.style.display = 'none', 5000);
         }
 
+        // File name display handlers
         document.getElementById('examCourseFile').addEventListener('change', function(e) {
             document.getElementById('examCourseName').textContent = e.target.files[0]?.name || '';
         });
@@ -319,6 +522,7 @@
             document.getElementById('examRoomName').textContent = e.target.files[0]?.name || '';
         });
 
+        // Upload handlers
         document.getElementById('examCourseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -328,7 +532,10 @@
             });
             const data = await response.json();
             showMessage(data.message || data.error, data.error ? 'error' : 'success');
-            if (!data.error) e.target.reset();
+            if (!data.error) {
+                e.target.reset();
+                document.getElementById('examCourseName').textContent = '';
+            }
         });
 
         document.getElementById('invigilatorForm').addEventListener('submit', async (e) => {
@@ -340,7 +547,10 @@
             });
             const data = await response.json();
             showMessage(data.message || data.error, data.error ? 'error' : 'success');
-            if (!data.error) e.target.reset();
+            if (!data.error) {
+                e.target.reset();
+                document.getElementById('invigilatorName').textContent = '';
+            }
         });
 
         document.getElementById('examRoomForm').addEventListener('submit', async (e) => {
@@ -352,15 +562,60 @@
             });
             const data = await response.json();
             showMessage(data.message || data.error, data.error ? 'error' : 'success');
-            if (!data.error) e.target.reset();
+            if (!data.error) {
+                e.target.reset();
+                document.getElementById('examRoomName').textContent = '';
+            }
         });
 
+        // Generate exam schedule with date validation
         async function generateExamSchedule() {
-            const response = await fetch('/generate-exam', { method: 'POST' });
-            const data = await response.json();
-            showMessage(data.message || data.error, data.error ? 'error' : 'success');
-            if (!data.error) {
-                setTimeout(() => window.location.href = '/view-exam', 2000);
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            const timeSlot1 = document.getElementById('timeSlot1').value;
+            const timeSlot2 = document.getElementById('timeSlot2').value;
+
+            // Validate dates
+            if (!startDate || !endDate) {
+                showMessage('Please select both start and end dates', 'warning');
+                return;
+            }
+
+            const examDays = parseInt(examDaysSpan.textContent);
+            if (examDays < 1) {
+                showMessage('No valid exam days available. Please select a different date range.', 'warning');
+                return;
+            }
+
+            // Disable button and show loading
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating... Please wait';
+
+            try {
+                const response = await fetch('/generate-exam', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        startDate,
+                        endDate,
+                        timeSlot1,
+                        timeSlot2
+                    })
+                });
+                
+                const data = await response.json();
+                showMessage(data.message || data.error, data.error ? 'error' : 'success');
+                
+                if (!data.error) {
+                    setTimeout(() => window.location.href = '/view-exam', 2000);
+                }
+            } catch (error) {
+                showMessage('Failed to generate exam schedule: ' + error.message, 'error');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '⚡ Generate Exam Schedule';
             }
         }
     </script>
