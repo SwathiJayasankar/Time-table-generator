@@ -232,22 +232,8 @@ The exam scheduler ensures:
   * CSV download
   * Print-friendly format
 
+
 ---
-
-## 🔮 Future Enhancements
-
-* 🧩 Integrate **Genetic Algorithm** or **Backtracking** for optimal timetable generation
-* 📄 Export to PDF with custom formatting
-* 👥 Multi-section support for large classes
-* 🎓 Student group and batch management
-* 📊 Room capacity validation against class size
-* ⏰ Custom time slot configuration
-* ⚖️ Faculty workload balancing
-* 🖱️ Drag-and-drop manual adjustments
-* 🔔 Real-time conflict detection
-* 📧 Email notifications for updates
-* 📱 Mobile app integration
-
 
 **Version:** 2.0  
 **Last Updated:** November 2025  
